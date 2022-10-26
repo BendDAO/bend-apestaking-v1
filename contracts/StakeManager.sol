@@ -134,13 +134,8 @@ contract StakeManager is
         require(address(this) == initiator, "Flashloan: invalid initiator");
         require(
             _msgSender() == operator && (operator == boundBayc || operator == boundMayc),
-            "Flashloan: operator is not BNFT"
+            "Flashloan: operator is not bound ape"
         );
-        require(
-            _msgSender() == operator && (operator == boundBayc || operator == boundMayc),
-            "Flashloan: operator is not BNFT"
-        );
-
         require(asset == bayc || asset == mayc, "Flashloan: not ape asset");
         require(tokenIds.length == 1, "Flashloan: multiple apes not supported");
 

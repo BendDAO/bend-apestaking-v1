@@ -203,7 +203,7 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
             IERC721Upgradeable(apeStaked.collection).safeTransferFrom(
                 apeStaked.staker,
                 address(this),
-                bakcStaked.tokenId
+                apeStaked.tokenId
             );
             stakeManager.mintBoundApe(address(boundApe), apeStaked.tokenId, apeStaked.staker);
             apeStaked.collection = address(boundApe);
