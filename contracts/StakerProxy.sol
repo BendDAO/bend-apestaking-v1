@@ -213,6 +213,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
         if (staker == _bakcStaked.staker) {
             IERC721(bakc).safeTransferFrom(address(this), staker, _bakcStaked.tokenId);
         }
+        pendingWithdraw[staker] = 0;
     }
 
     function withdrawERC20Emergency(
@@ -232,11 +233,10 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
     }
 
     function _allocateRawards(uint256 rewardsAmount) internal {
-        (
-            pendingRewards[_apeStaked.staker],
-            pendingRewards[_bakcStaked.staker],
-            pendingRewards[_coinStaked.staker]
-        ) = _computeRawards(rewardsAmount);
+        (uint256 apeRewards, uint256 bakcRewards, uint256 coinRewards) = _computeRawards(rewardsAmount);
+        pendingRewards[_apeStaked.staker] += apeRewards;
+        pendingRewards[_bakcStaked.staker] += bakcRewards;
+        pendingRewards[_coinStaked.staker] += coinRewards;
     }
 
     function _computeRawards(uint256 rewardsAmount)
@@ -321,12 +321,12 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
                 apeCoinStaking.withdrawBAKC(emptyNfts, nfts);
             }
         }
-        pendingWithdraw[_apeStaked.staker] = _apeStaked.coinAmount;
+        pendingWithdraw[_apeStaked.staker] += _apeStaked.coinAmount;
         if (!_bakcStaked.isNull()) {
-            pendingWithdraw[_bakcStaked.staker] = _bakcStaked.coinAmount;
+            pendingWithdraw[_bakcStaked.staker] += _bakcStaked.coinAmount;
         }
         if (!_coinStaked.isNull()) {
-            pendingWithdraw[_coinStaked.staker] = _coinStaked.coinAmount;
+            pendingWithdraw[_coinStaked.staker] += _coinStaked.coinAmount;
         }
         // withdraw from ape staking will receive staked principal and rewards
         uint256 rewardsAmount = IERC20(apeCoin).balanceOf(address(this)) - preBalance - coinAmount;
