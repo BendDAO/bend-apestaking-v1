@@ -18,8 +18,4 @@ interface IBNFT is IERC721Upgradeable, IERC721ReceiverUpgradeable {
     function burn(uint256 tokenId) external;
 
     function underlyingAsset() external view returns (address);
-
-    function addTokenBurnInterceptor(uint256 tokenId, address interceptor) external;
-
-    function deleteTokenBurnInterceptor(uint256 tokenId, address interceptor) external;
 }

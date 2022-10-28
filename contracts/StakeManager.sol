@@ -11,7 +11,7 @@ import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Addr
 import {EnumerableSetUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import {IWETH} from "./interfaces/IWETH.sol";
-import {IBNFTBurnInterceptor} from "./interfaces/IBNFTBurnInterceptor.sol";
+import {ILoanRepaidInterceptor} from "./interfaces/ILoanRepaidInterceptor.sol";
 import {IApeCoinStaking} from "./interfaces/IApeCoinStaking.sol";
 import {IStakerProxy} from "./interfaces/IStakerProxy.sol";
 import {IStakeManager, DataTypes} from "./interfaces/IStakeManager.sol";
@@ -22,7 +22,7 @@ import {IFlashLoanReceiver} from "./interfaces/IFlashLoanReceiver.sol";
 contract StakeManager is
     IStakeManager,
     IFlashLoanReceiver,
-    IBNFTBurnInterceptor,
+    ILoanRepaidInterceptor,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
     ERC721HolderUpgradeable
@@ -143,7 +143,7 @@ contract StakeManager is
         return true;
     }
 
-    function beforeTokenBurn(address nftAsset, uint256 nftTokenId) external override returns (bool) {
+    function beforeLoanRepaid(address nftAsset, uint256 nftTokenId) external override returns (bool) {
         require(_msgSender() == boundBayc || _msgSender() == boundMayc, "Matcher: burn sender invalid");
         EnumerableSetUpgradeable.AddressSet storage proxySet = _stakedProxies[nftAsset][nftTokenId];
         uint256 length = proxySet.length();
@@ -154,13 +154,13 @@ contract StakeManager is
         for (uint256 i = 0; i < length; i++) {
             IStakerProxy proxy = IStakerProxy(proxiesCopy[i]);
             if (!proxy.unStaked()) {
-                _unStake(proxy);
+                _flashCall(address(proxy), this.unStake.selector);
             }
         }
         return true;
     }
 
-    function afterTokenBurn(address, uint256) external view override returns (bool) {
+    function afterLoanRepaid(address, uint256) external view override returns (bool) {
         require(_msgSender() == boundBayc || _msgSender() == boundMayc, "Matcher: burn sender invalid");
         return true;
     }
@@ -169,7 +169,7 @@ contract StakeManager is
         DataTypes.ApeStaked memory apeStaked,
         DataTypes.BakcStaked memory bakcStaked,
         DataTypes.CoinStaked memory coinStaked
-    ) external onlyCaller(matcher) nonReentrant {
+    ) external override onlyCaller(matcher) nonReentrant {
         IBNFT boundApe = IBNFT(apeStaked.collection);
         uint256[] memory ids = new uint256[](1);
         ids[0] = apeStaked.tokenId;
@@ -181,11 +181,10 @@ contract StakeManager is
         address ape,
         uint256 tokenId,
         address to
-    ) external onlyCaller(matcher) {
+    ) external override onlyCaller(matcher) {
         require(ape == boundBayc || ape == boundMayc, "BNFT: not a valid bound ape");
         IBNFT boundApe = IBNFT(ape);
         boundApe.mint(to, tokenId);
-        boundApe.addTokenBurnInterceptor(tokenId, address(this));
     }
 
     function flashUnstake(address proxy) external override {
@@ -242,7 +241,7 @@ contract StakeManager is
     }
 
     function unStakeBeforeBNFTBurn(address bNftAddress, uint256 tokenId) external onlyCaller(matcher) {
-        lendPoolAddressedProvider.getLendPoolLoan().addTokenBurnInterceptor(bNftAddress, tokenId);
+        lendPoolAddressedProvider.getLendPoolLoan().addLoanRepaidInterceptor(bNftAddress, tokenId);
     }
 
     function unStake(address proxy) external override onlySelf onlyValidProxy(proxy) {
@@ -288,7 +287,6 @@ contract StakeManager is
         }
         require(boundApe.ownerOf(nftTokenId) == _msgSender(), "Borrow: no bnft ownership");
         require(boundApe.minterOf(nftTokenId) == address(this), "Borrow: not bnft minter");
-        boundApe.deleteTokenBurnInterceptor(nftTokenId, address(this));
         boundApe.burn(nftTokenId);
         ILendPool pool = lendPoolAddressedProvider.getLendPool();
         ILendPoolLoan poolLoan = lendPoolAddressedProvider.getLendPoolLoan();
