@@ -3,7 +3,9 @@ pragma solidity 0.8.9;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+//fix issue "@openzeppelin/contracts/utils/Address.sol:191: Use of delegatecall is not allowed"
+// refer: https://forum.openzeppelin.com/t/spurious-issue-from-non-upgradeable-initializable-sol/30570/6
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -21,6 +23,8 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
     using PercentageMath for uint256;
     using SafeCast for uint256;
     using SafeCast for int256;
+
+    uint256 public override version = 1;
 
     uint8 private constant PRECISION = 10;
     uint256 private constant BAYC_POOL_ID = 1;
@@ -192,8 +196,10 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
         _claim();
         toStaker = pendingRewards[staker];
         toFee = toStaker.percentMul(fee);
-        toStaker -= toFee;
-        IERC20(apeCoin).safeTransfer(feeRecipient, toFee);
+        if (toFee > 0 && feeRecipient != address(0)) {
+            IERC20(apeCoin).safeTransfer(feeRecipient, toFee);
+            toStaker -= toFee;
+        }
         IERC20(apeCoin).safeTransfer(staker, toStaker);
         pendingRewards[staker] = 0;
     }

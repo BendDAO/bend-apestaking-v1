@@ -2,6 +2,7 @@
 pragma solidity 0.8.9;
 
 import {DataTypes} from "../libraries/DataTypes.sol";
+import {IStakerProxy} from "./IStakerProxy.sol";
 
 interface IStakeManager {
     event Staked(address indexed proxy, bytes32 apeOfferHash, bytes32 bakcOfferHash, bytes32 coinOfferHash);
@@ -11,9 +12,9 @@ interface IStakeManager {
     event Claimed(address indexed staker, uint256 apeCoinAmount);
     event Withdrawn(address indexed staker, uint256 apeCoinAmount);
 
-    function claimable(address proxy, address staker) external view returns (uint256);
+    function claimable(IStakerProxy proxy, address staker) external view returns (uint256);
 
-    function withdrawable(address proxy, address staker) external view returns (uint256);
+    function withdrawable(IStakerProxy proxy, address staker) external view returns (uint256);
 
     function feeRecipient() external view returns (address);
 
@@ -22,6 +23,8 @@ interface IStakeManager {
     function updateFeeRecipient(address recipient) external;
 
     function updateFee(uint256 fee) external;
+
+    function setMatcher(address matcher) external;
 
     function mintBoundApe(
         address ape,
@@ -35,25 +38,11 @@ interface IStakeManager {
         DataTypes.CoinStaked memory coinStaked
     ) external;
 
-    function flashUnstake(address proxy) external;
+    function flashUnstake(IStakerProxy proxy) external;
 
-    function flashClaim(address proxy) external;
-
-    function flashWithdraw(address proxy) external;
-
-    function stake(
-        DataTypes.ApeStaked memory apeStaked,
-        DataTypes.BakcStaked memory bakcStaked,
-        DataTypes.CoinStaked memory coinStaked
-    ) external;
-
-    function unStake(address proxy) external;
+    function flashClaim(IStakerProxy proxy) external;
 
     function unStakeBeforeBNFTBurn(address bNftAddress, uint256 tokenId) external;
-
-    function claim(address proxy, address staker) external;
-
-    function withdraw(address proxy, address staker) external;
 
     function borrowETH(
         uint256 amount,

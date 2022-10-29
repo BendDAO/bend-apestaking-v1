@@ -14,6 +14,8 @@ interface IStakerProxy {
         address apeCoinStaking_
     ) external;
 
+    function version() external view returns (uint256);
+
     function apeStaked() external view returns (DataTypes.ApeStaked memory);
 
     function bakcStaked() external view returns (DataTypes.BakcStaked memory);

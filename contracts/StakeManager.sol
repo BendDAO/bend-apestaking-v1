@@ -3,6 +3,7 @@ pragma solidity 0.8.9;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {ClonesUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {ERC721HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/utils/ERC721HolderUpgradeable.sol";
@@ -20,19 +21,27 @@ import {PercentageMath} from "./libraries/PercentageMath.sol";
 import {IFlashLoanReceiver} from "./interfaces/IFlashLoanReceiver.sol";
 
 contract StakeManager is
-    IStakeManager,
-    IFlashLoanReceiver,
-    ILoanRepaidInterceptor,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
-    ERC721HolderUpgradeable
+    PausableUpgradeable,
+    ERC721HolderUpgradeable,
+    IStakeManager,
+    IFlashLoanReceiver,
+    ILoanRepaidInterceptor
 {
     using ClonesUpgradeable for address;
-    using AddressUpgradeable for address;
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using DataTypes for DataTypes.ApeStaked;
     using DataTypes for DataTypes.BakcStaked;
     using DataTypes for DataTypes.CoinStaked;
+
+    enum FlashCall {
+        UNKNOWN,
+        STAKE,
+        UNSTAKE,
+        CLAIM
+    }
+
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     mapping(address => mapping(uint256 => EnumerableSetUpgradeable.AddressSet)) private _stakedProxies;
@@ -59,59 +68,66 @@ contract StakeManager is
 
     ILendPoolAddressesProvider public lendPoolAddressedProvider;
 
-    modifier onlyStaker(address proxy) {
-        IStakerProxy stakerProxy = IStakerProxy(proxy);
-        address _sender = _msgSender();
-        require(
-            _sender == stakerProxy.apeStaked().staker ||
-                _sender == stakerProxy.bakcStaked().staker ||
-                _sender == stakerProxy.coinStaked().staker,
-            "Manager: not valid staker"
-        );
-        _;
-    }
-
     modifier onlyCaller(address caller) {
         require(_msgSender() == caller, "Manager: not a valid caller");
         _;
     }
 
-    modifier onlySelf() {
-        require(_msgSender() == address(this), "Manager: not a valid caller");
+    modifier onlyStaker(IStakerProxy proxy) {
+        require(proxies[address(proxy)], "Manager: not a valid proxy");
+        address _sender = _msgSender();
+        require(
+            _sender == proxy.apeStaked().staker ||
+                _sender == proxy.bakcStaked().staker ||
+                _sender == proxy.coinStaked().staker,
+            "Manager: not valid staker"
+        );
         _;
     }
 
-    modifier onlyValidProxy(address proxy) {
-        require(proxies[proxy], "Manager: not a valid proxy");
+    modifier onlyProxy(IStakerProxy proxy) {
+        require(proxies[address(proxy)], "Manager: not a valid proxy");
         _;
     }
 
     function initialize(
         address bayc_,
         address mayc_,
-        address bakcStaked,
+        address bakc_,
         address boundBayc_,
         address boundMayc_,
         address apeCoin_,
-        address apeCoinStaking_,
         address WETH_,
+        address apeCoinStaking_,
         address proxyImplementation_,
-        address matcher_,
         address lendPoolAddressedProvider_
     ) external initializer {
         __Ownable_init();
         __ReentrancyGuard_init();
+        __Pausable_init();
         boundBayc = boundBayc_;
         boundMayc = boundMayc_;
         bayc = bayc_;
         mayc = mayc_;
-        bakc = bakcStaked;
+        bakc = bakc_;
         apeCoin = apeCoin_;
         WETH = IWETH(WETH_);
         apeCoinStaking = IApeCoinStaking(apeCoinStaking_);
         proxyImplementation = proxyImplementation_;
-        matcher = matcher_;
         lendPoolAddressedProvider = ILendPoolAddressesProvider(lendPoolAddressedProvider_);
+    }
+
+    function pause() external onlyOwner whenNotPaused {
+        _pause();
+    }
+
+    function unpause() external onlyOwner whenPaused {
+        _unpause();
+    }
+
+    function setMatcher(address matcher_) external override onlyOwner {
+        require(matcher_ != address(0), "Manager: matcher can't be zero address");
+        matcher = matcher_;
     }
 
     function updateFeeRecipient(address feeRecipient_) external override onlyOwner {
@@ -130,7 +146,7 @@ contract StakeManager is
         address initiator,
         address operator,
         bytes calldata params
-    ) external returns (bool) {
+    ) external whenNotPaused returns (bool) {
         require(address(this) == initiator, "Flashloan: invalid initiator");
         require(
             _msgSender() == operator && (operator == boundBayc || operator == boundMayc),
@@ -139,12 +155,32 @@ contract StakeManager is
         require(asset == bayc || asset == mayc, "Flashloan: not ape asset");
         require(tokenIds.length == 1, "Flashloan: multiple apes not supported");
 
-        address(this).functionCall(params);
+        (FlashCall callType, bytes memory param) = abi.decode(params, (FlashCall, bytes));
+
+        if (FlashCall.STAKE == callType) {
+            (
+                DataTypes.ApeStaked memory apeStaked,
+                DataTypes.BakcStaked memory bakcStaked,
+                DataTypes.CoinStaked memory coinStaked
+            ) = abi.decode(param, (DataTypes.ApeStaked, DataTypes.BakcStaked, DataTypes.CoinStaked));
+            _stake(apeStaked, bakcStaked, coinStaked);
+        } else if (FlashCall.UNSTAKE == callType) {
+            (address proxy, address staker) = abi.decode(param, (address, address));
+            _unStake(IStakerProxy(proxy), staker);
+        } else if (FlashCall.CLAIM == callType) {
+            (address proxy, address staker) = abi.decode(param, (address, address));
+            _claim(IStakerProxy(proxy), staker);
+        }
+        if (asset == bayc) {
+            IERC721Upgradeable(bayc).approve(boundBayc, tokenIds[0]);
+        } else {
+            IERC721Upgradeable(mayc).approve(boundMayc, tokenIds[0]);
+        }
         return true;
     }
 
     function beforeLoanRepaid(address nftAsset, uint256 nftTokenId) external override returns (bool) {
-        require(_msgSender() == boundBayc || _msgSender() == boundMayc, "Matcher: burn sender invalid");
+        require(_msgSender() == boundBayc || _msgSender() == boundMayc, "LoanRepaid: sender invalid");
         EnumerableSetUpgradeable.AddressSet storage proxySet = _stakedProxies[nftAsset][nftTokenId];
         uint256 length = proxySet.length();
         address[] memory proxiesCopy = new address[](length);
@@ -154,14 +190,16 @@ contract StakeManager is
         for (uint256 i = 0; i < length; i++) {
             IStakerProxy proxy = IStakerProxy(proxiesCopy[i]);
             if (!proxy.unStaked()) {
-                _flashCall(address(proxy), this.unStake.selector);
+                // burn bound ape, so here staker is ape holder
+                bytes memory param = abi.encode(proxy, proxy.apeStaked().staker);
+                _flashCall(FlashCall.UNSTAKE, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
             }
         }
         return true;
     }
 
     function afterLoanRepaid(address, uint256) external view override returns (bool) {
-        require(_msgSender() == boundBayc || _msgSender() == boundMayc, "Matcher: burn sender invalid");
+        require(_msgSender() == boundBayc || _msgSender() == boundMayc, "LoanRepaid: sender invalid");
         return true;
     }
 
@@ -169,50 +207,49 @@ contract StakeManager is
         DataTypes.ApeStaked memory apeStaked,
         DataTypes.BakcStaked memory bakcStaked,
         DataTypes.CoinStaked memory coinStaked
-    ) external override onlyCaller(matcher) nonReentrant {
-        IBNFT boundApe = IBNFT(apeStaked.collection);
-        uint256[] memory ids = new uint256[](1);
-        ids[0] = apeStaked.tokenId;
-        bytes memory dataStaked = abi.encodeWithSelector(this.stake.selector, apeStaked, bakcStaked, coinStaked);
-        boundApe.flashLoan(address(this), ids, dataStaked);
+    ) external override onlyCaller(matcher) nonReentrant whenNotPaused {
+        bytes memory param = abi.encode(apeStaked, bakcStaked, coinStaked);
+        _flashCall(FlashCall.STAKE, apeStaked.collection, apeStaked.tokenId, param);
     }
 
     function mintBoundApe(
         address ape,
         uint256 tokenId,
         address to
-    ) external override onlyCaller(matcher) {
+    ) external override onlyCaller(matcher) whenNotPaused {
         require(ape == boundBayc || ape == boundMayc, "BNFT: not a valid bound ape");
         IBNFT boundApe = IBNFT(ape);
         boundApe.mint(to, tokenId);
     }
 
-    function flashUnstake(address proxy) external override {
-        _flashCall(proxy, this.unStake.selector);
+    function flashUnstake(IStakerProxy proxy) external override onlyStaker(proxy) {
+        bytes memory param = abi.encode(proxy, _msgSender());
+        _flashCall(FlashCall.UNSTAKE, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
     }
 
-    function flashClaim(address proxy) external override {
-        _flashCall(proxy, this.claim.selector);
+    function flashClaim(IStakerProxy proxy) external override onlyStaker(proxy) {
+        bytes memory param = abi.encode(proxy, _msgSender());
+        _flashCall(FlashCall.CLAIM, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
     }
 
-    function flashWithdraw(address proxy) external override {
-        _flashCall(proxy, this.withdraw.selector);
-    }
-
-    function _flashCall(address proxy, bytes4 selector) internal onlyStaker(proxy) onlyValidProxy(proxy) nonReentrant {
-        IStakerProxy stakerProxy = IStakerProxy(proxy);
+    function _flashCall(
+        FlashCall callType,
+        address boundApeCollection,
+        uint256 tokenId,
+        bytes memory param
+    ) internal nonReentrant whenNotPaused {
         uint256[] memory ids = new uint256[](1);
-        ids[0] = stakerProxy.apeStaked().tokenId;
-        IBNFT boundApe = IBNFT(stakerProxy.apeStaked().collection);
-        bytes memory data = abi.encodeWithSelector(selector, proxy, _msgSender());
+        ids[0] = tokenId;
+        IBNFT boundApe = IBNFT(boundApeCollection);
+        bytes memory data = abi.encode(callType, param);
         boundApe.flashLoan(address(this), ids, data);
     }
 
-    function stake(
+    function _stake(
         DataTypes.ApeStaked memory apeStaked,
         DataTypes.BakcStaked memory bakcStaked,
         DataTypes.CoinStaked memory coinStaked
-    ) external override onlySelf {
+    ) internal {
         require(_isBoundApe(apeStaked.collection), "Manager: only bound ape allowed");
         IStakerProxy proxy = IStakerProxy(proxyImplementation.clone());
 
@@ -240,38 +277,32 @@ contract StakeManager is
         emit Staked(address(proxy), apeStaked.offerHash, bakcStaked.offerHash, coinStaked.offerHash);
     }
 
-    function unStakeBeforeBNFTBurn(address bNftAddress, uint256 tokenId) external onlyCaller(matcher) {
+    function unStakeBeforeBNFTBurn(address bNftAddress, uint256 tokenId) external onlyCaller(matcher) whenNotPaused {
         lendPoolAddressedProvider.getLendPoolLoan().addLoanRepaidInterceptor(bNftAddress, tokenId);
     }
 
-    function unStake(address proxy) external override onlySelf onlyValidProxy(proxy) {
-        _unStake(IStakerProxy(proxy));
-    }
-
-    function _unStake(IStakerProxy proxy) internal {
+    function _unStake(IStakerProxy proxy, address staker) internal {
         proxy.unStake();
         // remove staked proxy
         address ape = IBNFT(proxy.apeStaked().collection).underlyingAsset();
         uint256 tokenId = proxy.apeStaked().tokenId;
         _stakedProxies[ape][tokenId].remove(address(proxy));
         emit UnStaked(address(proxy));
-    }
-
-    function claim(address proxy, address staker) external override onlySelf onlyValidProxy(proxy) {
-        IStakerProxy stakerProxy = IStakerProxy(proxy);
-        (uint256 toStaker, uint256 toFee) = stakerProxy.claim(staker, fee, feeRecipient);
-        emit Claimed(staker, toStaker);
-        emit FeePaid(staker, feeRecipient, toFee);
-    }
-
-    function withdraw(address proxy, address staker) external override onlySelf onlyValidProxy(proxy) {
-        IStakerProxy stakerProxy = IStakerProxy(proxy);
-        if (!stakerProxy.unStaked()) {
-            _unStake(stakerProxy);
-        }
-        uint256 amount = stakerProxy.withdraw(staker);
+        uint256 amount = proxy.withdraw(staker);
         if (amount > 0) {
             emit Withdrawn(staker, amount);
+        }
+        _claim(proxy, staker);
+    }
+
+    function _claim(IStakerProxy proxy, address staker) internal {
+        IStakerProxy stakerProxy = IStakerProxy(proxy);
+        (uint256 toStaker, uint256 toFee) = stakerProxy.claim(staker, fee, feeRecipient);
+        if (toStaker > 0) {
+            emit Claimed(staker, toStaker);
+        }
+        if (toFee > 0) {
+            emit FeePaid(staker, feeRecipient, toFee);
         }
     }
 
@@ -279,7 +310,7 @@ contract StakeManager is
         uint256 amount,
         address nftAsset,
         uint256 nftTokenId
-    ) external {
+    ) external whenNotPaused {
         require(nftAsset == bayc || nftAsset == mayc, "Borrow: not ape collection");
         IBNFT boundApe = IBNFT(boundBayc);
         if (nftAsset == mayc) {
@@ -301,12 +332,12 @@ contract StakeManager is
         AddressUpgradeable.sendValue(payable(_msgSender()), amount);
     }
 
-    function claimable(address proxy, address staker) external view onlyValidProxy(proxy) returns (uint256) {
+    function claimable(IStakerProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
         IStakerProxy stakerProxy = IStakerProxy(proxy);
         return stakerProxy.claimable(staker);
     }
 
-    function withdrawable(address proxy, address staker) external view onlyValidProxy(proxy) returns (uint256) {
+    function withdrawable(IStakerProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
         IStakerProxy stakerProxy = IStakerProxy(proxy);
         return stakerProxy.withdrawable(staker);
     }
