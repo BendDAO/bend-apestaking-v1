@@ -45,23 +45,36 @@ export const getSignerByAddress = async (address: string): Promise<Signer> => {
 export const getSignersAddresses = async (): Promise<string[]> =>
   await Promise.all((await getSigners()).map((signer) => signer.getAddress()));
 
-export const deployContract = async (contractName: string, args: any[], verify?: boolean): Promise<Contract> => {
-  console.log("deploy", contractName);
+export const deployContract = async <ContractType extends Contract>(
+  contractName: string,
+  args: any[],
+  verify?: boolean,
+  dbKey?: string
+): Promise<ContractType> => {
+  dbKey = dbKey || contractName;
+  console.log("deploy", dbKey);
   const instance = await (await DRE.ethers.getContractFactory(contractName))
     .connect(await getDeploySigner())
     .deploy(...args);
-  await withSaveAndVerify(instance, contractName, args, verify);
-  return instance;
+
+  await withSaveAndVerify(instance, dbKey, args, verify);
+  return instance as ContractType;
 };
 
-export const deployProxyContract = async (contractName: string, args: any[], verify?: boolean): Promise<Contract> => {
-  console.log("deploy", contractName);
+export const deployProxyContract = async <ContractType extends Contract>(
+  contractName: string,
+  args: any[],
+  verify?: boolean,
+  dbKey?: string
+): Promise<ContractType> => {
+  dbKey = dbKey || contractName;
+  console.log("deploy", dbKey);
   const factory = await DRE.ethers.getContractFactory(contractName);
   const instance = await DRE.upgrades.deployProxy(factory, args, {
     timeout: 0,
   });
-  await withSaveAndVerify(instance, contractName, args, verify);
-  return instance;
+  await withSaveAndVerify(instance, dbKey, args, verify);
+  return instance as ContractType;
 };
 
 export const withSaveAndVerify = async (

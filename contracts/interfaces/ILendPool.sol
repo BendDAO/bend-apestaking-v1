@@ -2,6 +2,13 @@
 pragma solidity 0.8.9;
 
 interface ILendPool {
+    function deposit(
+        address reserve,
+        uint256 amount,
+        address onBehalfOf,
+        uint16 referralCode
+    ) external;
+
     function borrow(
         address reserveAsset,
         uint256 amount,
