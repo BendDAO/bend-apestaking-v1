@@ -29,13 +29,13 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
     uint256 public constant MAYC_POOL_MAX_COIN_CAP = 2042 * 1e18;
     uint256 public constant BAKC_POOL_MAX_COIN_CAP = 856 * 1e18;
 
-    bytes32 public immutable DOMAIN_SEPARATOR;
-    uint256 private immutable _CACHED_CHAIN_ID;
-    address private immutable _CACHED_THIS;
+    uint256 private _CACHED_CHAIN_ID;
+    address private _CACHED_THIS;
 
-    bytes32 private immutable _HASHED_NAME;
-    bytes32 private immutable _HASHED_VERSION;
-    bytes32 private immutable _TYPE_HASH;
+    bytes32 public DOMAIN_SEPARATOR;
+    bytes32 private _HASHED_NAME;
+    bytes32 private _HASHED_VERSION;
+    bytes32 private _TYPE_HASH;
 
     IStakeManager public stakeManager;
     ILendPoolAddressesProvider public lendPoolAddressedProvider;
@@ -48,40 +48,38 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
 
     mapping(address => mapping(uint256 => bool)) private _isOfferNonceExecutedOrCancelled;
 
-    constructor() {
+    function initialize(
+        address bayc_,
+        address mayc_,
+        address bakc_,
+        address boundBayc_,
+        address boundMayc_,
+        address apeCoin_,
+        address stakeManager_,
+        address lendPoolAddressedProvider_
+    ) external initializer {
+        __Ownable_init();
+        __ReentrancyGuard_init();
+
+        bayc = bayc_;
+        mayc = mayc_;
+        bakc = bakc_;
+        boundBayc = boundBayc_;
+        boundMayc = boundMayc_;
+        apeCoin = apeCoin_;
+        stakeManager = IStakeManager(stakeManager_);
+        lendPoolAddressedProvider = ILendPoolAddressesProvider(lendPoolAddressedProvider_);
+
+        _CACHED_CHAIN_ID = block.chainid;
+        _CACHED_THIS = address(this);
+
         // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
         _TYPE_HASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
         // keccak256("BendStakeMatcher")
         _HASHED_NAME = 0xbcb698091c9b825f82b6d0957999ec0c6842230972755478948ae344e510f89c;
         // keccak256(bytes("1"))
         _HASHED_VERSION = 0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6;
-
-        _CACHED_CHAIN_ID = block.chainid;
-        _CACHED_THIS = address(this);
-
         DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, _HASHED_NAME, _HASHED_VERSION);
-    }
-
-    function initialize(
-        address lendPoolAddressedProvider_,
-        address stakeManager_,
-        address bayc_,
-        address mayc_,
-        address bakc_,
-        address boundBayc_,
-        address boundMayc_,
-        address apeCoin_
-    ) external initializer {
-        __Ownable_init();
-        __ReentrancyGuard_init();
-        lendPoolAddressedProvider = ILendPoolAddressesProvider(lendPoolAddressedProvider_);
-        stakeManager = IStakeManager(stakeManager_);
-        boundBayc = boundBayc_;
-        boundMayc = boundMayc_;
-        bayc = bayc_;
-        mayc = mayc_;
-        bakc = bakc_;
-        apeCoin = apeCoin_;
     }
 
     function cancelOffers(uint256[] calldata offerNonces) external override {
