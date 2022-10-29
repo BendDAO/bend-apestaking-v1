@@ -31,3 +31,58 @@ export const NETWORKS_RPC_URL: Params<string> = {
     ? `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_KEY}`
     : `https://mainnet.infura.io/v3/${INFURA_KEY}`,
 };
+
+export const FEE: Params<string> = {
+  [Network.goerli]: "100",
+  [Network.mainnet]: "100",
+};
+
+export const FEE_RECIPIENT: Params<string> = {
+  [Network.goerli]: "",
+  [Network.mainnet]: "",
+};
+
+export const WETH: Params<string> = {
+  [Network.goerli]: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+  [Network.mainnet]: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+};
+
+export const APE_COIN: Params<string> = {
+  [Network.goerli]: "0x701ca86a355dA5E32b70a9c7e8967B4DFaa735dB",
+  [Network.mainnet]: "",
+};
+
+export const APE_STAKING: Params<string> = {
+  [Network.goerli]: "0x7A2113dF0cC592D8ed16a9a2CA7c7c4bd2CE2906",
+  [Network.mainnet]: "",
+};
+
+export const BAYC: Params<string> = {
+  [Network.goerli]: "0x30d190032A34d6151073a7DB8793c01Aa05987ec",
+  [Network.mainnet]: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+};
+
+export const bBAYC: Params<string> = {
+  [Network.goerli]: "0x529710d1e2ab61bDea707039bB841583A983b228",
+  [Network.mainnet]: "0xDBfD76AF2157Dc15eE4e57F3f942bB45Ba84aF24",
+};
+
+export const MAYC: Params<string> = {
+  [Network.goerli]: "0x15596C27900e12A9cfC301248E21888751f61c19",
+  [Network.mainnet]: "0x60E4d786628Fea6478F785A6d7e704777c86a7c6",
+};
+
+export const bMAYC: Params<string> = {
+  [Network.goerli]: "0xe7BD47E781e8758420Df9992ADD1f5ab31555fF7",
+  [Network.mainnet]: "0x69f37e419bD1457d2a25ed3f5d418169caAe8D1F",
+};
+
+export const BAKC: Params<string> = {
+  [Network.goerli]: "0x9420BE07C7c374635059877c3Dc8A088862C9695",
+  [Network.mainnet]: "0xba30E5F9Bb24caa003E9f2f0497Ad287FDF95623",
+};
+
+export const BendAddressesProviders: Params<string> = {
+  [Network.goerli]: "0x1cba0A3e18be7f210713c9AC9FE17955359cC99B",
+  [Network.mainnet]: "0x24451f47caf13b24f4b5034e1df6c0e401ec0e46",
+};
