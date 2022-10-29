@@ -1,7 +1,7 @@
 {
-  "name": "@benddao/downpayment",
+  "name": "@benddao/bendApeStaking",
   "version": "1.0.0",
-  "description": "Bend downpayment smart",
+  "description": "Bend ape staking smart contracts",
   "author": "BendDAO",
   "private": false,
   "files": [
@@ -17,10 +17,10 @@
     "node": ">=8.3.0"
   },
   "homepage": "https://benddao.xyz/",
-  "bugs": "https://github.com/BendDAO/bend-downpayment/issues",
+  "bugs": "https://github.com/BendDAO/bend-apecoin-staking/issues",
   "repository": {
     "type": "git",
-    "url": "https://github.com/BendDAO/bend-downpayment.git"
+    "url": "https://github.com/BendDAO/bend-apecoin-staking.git"
   },
   "publishConfig": {
     "access": "public",
