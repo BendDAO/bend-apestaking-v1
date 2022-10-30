@@ -85,6 +85,14 @@ contract StakeManager is
         _;
     }
 
+    modifier onlyLendPool() {
+        require(
+            _msgSender() == address(lendPoolAddressedProvider.getLendPoolLoan()),
+            "Manager: sender must be lend pool"
+        );
+        _;
+    }
+
     modifier onlyProxy(IStakerProxy proxy) {
         require(proxies[address(proxy)], "Manager: not a valid proxy");
         _;
@@ -179,8 +187,7 @@ contract StakeManager is
         return true;
     }
 
-    function beforeLoanRepaid(address nftAsset, uint256 nftTokenId) external override returns (bool) {
-        require(_msgSender() == boundBayc || _msgSender() == boundMayc, "LoanRepaid: sender invalid");
+    function beforeLoanRepaid(address nftAsset, uint256 nftTokenId) external override onlyLendPool returns (bool) {
         EnumerableSetUpgradeable.AddressSet storage proxySet = _stakedProxies[nftAsset][nftTokenId];
         uint256 length = proxySet.length();
         address[] memory proxiesCopy = new address[](length);
@@ -198,8 +205,7 @@ contract StakeManager is
         return true;
     }
 
-    function afterLoanRepaid(address, uint256) external view override returns (bool) {
-        require(_msgSender() == boundBayc || _msgSender() == boundMayc, "LoanRepaid: sender invalid");
+    function afterLoanRepaid(address, uint256) external view override onlyLendPool returns (bool) {
         return true;
     }
 
