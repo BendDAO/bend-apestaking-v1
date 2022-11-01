@@ -6,5 +6,7 @@ interface ILendPoolLoan {
 
     function deleteLoanRepaidInterceptor(address nftAsset, uint256 tokenId) external;
 
+    function getLoanRepaidInterceptors(address nftAsset, uint256 tokenId) external view returns (address[] memory);
+
     function getCollateralLoanId(address nftAsset, uint256 nftTokenId) external view returns (uint256);
 }

@@ -190,20 +190,17 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
             _apeCoin.safeTransferFrom(coinStaked.staker, address(stakeManager), coinStaked.coinAmount);
         }
 
-        if (_isApe(apeStaked.collection)) {
-            IBNFT boundApe = IBNFT(boundBayc);
-            if (apeStaked.collection == mayc) {
-                boundApe = IBNFT(boundMayc);
-            }
+        if (_isBoundApe(apeStaked.collection)) {
+            address apeCollection = IBNFT(apeStaked.collection).underlyingAsset();
+            stakeManager.unStakeBeforeBNFTBurn(apeCollection, apeStaked.tokenId);
+            apeStaked.collection = apeCollection;
+        } else {
             IERC721Upgradeable(apeStaked.collection).safeTransferFrom(
                 apeStaked.staker,
                 address(this),
                 apeStaked.tokenId
             );
-            stakeManager.mintBoundApe(address(boundApe), apeStaked.tokenId, apeStaked.staker);
-            apeStaked.collection = address(boundApe);
-        } else {
-            stakeManager.unStakeBeforeBNFTBurn(apeStaked.collection, apeStaked.tokenId);
+            stakeManager.mintBoundApe(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
         }
 
         stakeManager.flashStake(apeStaked, bakcStaked, coinStaked);
