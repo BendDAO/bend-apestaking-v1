@@ -14,7 +14,7 @@ import {EnumerableSetUpgradeable} from "@openzeppelin/contracts-upgradeable/util
 import {IWETH} from "./interfaces/IWETH.sol";
 import {ILoanRepaidInterceptor} from "./interfaces/ILoanRepaidInterceptor.sol";
 import {IApeCoinStaking} from "./interfaces/IApeCoinStaking.sol";
-import {IStakerProxy} from "./interfaces/IStakerProxy.sol";
+import {IStakeProxy} from "./interfaces/IStakeProxy.sol";
 import {IStakeManager, DataTypes} from "./interfaces/IStakeManager.sol";
 import {ILendPoolAddressesProvider, ILendPool, ILendPoolLoan} from "./interfaces/ILendPoolAddressesProvider.sol";
 import {PercentageMath} from "./libraries/PercentageMath.sol";
@@ -73,7 +73,7 @@ contract StakeManager is
         _;
     }
 
-    modifier onlyStaker(IStakerProxy proxy) {
+    modifier onlyStaker(IStakeProxy proxy) {
         require(proxies[address(proxy)], "Manager: not a valid proxy");
         address _sender = _msgSender();
         require(
@@ -93,7 +93,7 @@ contract StakeManager is
         _;
     }
 
-    modifier onlyProxy(IStakerProxy proxy) {
+    modifier onlyProxy(IStakeProxy proxy) {
         require(proxies[address(proxy)], "Manager: not a valid proxy");
         _;
     }
@@ -174,10 +174,10 @@ contract StakeManager is
             _stake(apeStaked, bakcStaked, coinStaked);
         } else if (FlashCall.UNSTAKE == callType) {
             (address proxy, address staker) = abi.decode(param, (address, address));
-            _unStake(IStakerProxy(proxy), staker);
+            _unStake(IStakeProxy(proxy), staker);
         } else if (FlashCall.CLAIM == callType) {
             (address proxy, address staker) = abi.decode(param, (address, address));
-            _claim(IStakerProxy(proxy), staker);
+            _claim(IStakeProxy(proxy), staker);
         }
         if (asset == bayc) {
             IERC721Upgradeable(bayc).approve(boundBayc, tokenIds[0]);
@@ -188,14 +188,9 @@ contract StakeManager is
     }
 
     function beforeLoanRepaid(address nftAsset, uint256 nftTokenId) external override onlyLendPool returns (bool) {
-        EnumerableSetUpgradeable.AddressSet storage proxySet = _stakedProxies[nftAsset][nftTokenId];
-        uint256 length = proxySet.length();
-        address[] memory proxiesCopy = new address[](length);
-        for (uint256 i = 0; i < length; i++) {
-            proxiesCopy[i] = proxySet.at(i);
-        }
-        for (uint256 i = 0; i < length; i++) {
-            IStakerProxy proxy = IStakerProxy(proxiesCopy[i]);
+        address[] memory stakedProxies = _stakedProxies[nftAsset][nftTokenId].values();
+        for (uint256 i = 0; i < stakedProxies.length; i++) {
+            IStakeProxy proxy = IStakeProxy(stakedProxies[i]);
             if (!proxy.unStaked()) {
                 // burn bound ape, so here staker is ape holder
                 bytes memory param = abi.encode(proxy, proxy.apeStaked().staker);
@@ -219,21 +214,21 @@ contract StakeManager is
     }
 
     function mintBoundApe(
-        address ape,
+        address apeCollection,
         uint256 tokenId,
         address to
     ) external override onlyCaller(matcher) whenNotPaused {
-        require(ape == boundBayc || ape == boundMayc, "BNFT: not a valid bound ape");
-        IBNFT boundApe = IBNFT(ape);
+        require(apeCollection == boundBayc || apeCollection == boundMayc, "BNFT: not a valid bound ape");
+        IBNFT boundApe = IBNFT(apeCollection);
         boundApe.mint(to, tokenId);
     }
 
-    function flashUnstake(IStakerProxy proxy) external override onlyStaker(proxy) {
+    function flashUnstake(IStakeProxy proxy) external override onlyStaker(proxy) {
         bytes memory param = abi.encode(proxy, _msgSender());
         _flashCall(FlashCall.UNSTAKE, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
     }
 
-    function flashClaim(IStakerProxy proxy) external override onlyStaker(proxy) {
+    function flashClaim(IStakeProxy proxy) external override onlyStaker(proxy) {
         bytes memory param = abi.encode(proxy, _msgSender());
         _flashCall(FlashCall.CLAIM, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
     }
@@ -257,16 +252,16 @@ contract StakeManager is
         DataTypes.CoinStaked memory coinStaked
     ) internal {
         require(_isBoundApe(apeStaked.collection), "Manager: only bound ape allowed");
-        IStakerProxy proxy = IStakerProxy(proxyImplementation.clone());
+        IStakeProxy proxy = IStakeProxy(proxyImplementation.clone());
 
-        address ape = IBNFT(apeStaked.collection).underlyingAsset();
-        IERC20Upgradeable(ape).safeTransferFrom(address(this), address(proxy), apeStaked.tokenId);
+        address apeCollection = IBNFT(apeStaked.collection).underlyingAsset();
+        IERC721Upgradeable(apeCollection).safeTransferFrom(address(this), address(proxy), apeStaked.tokenId);
 
         uint256 coinAmount = apeStaked.coinAmount;
 
         if (!bakcStaked.isNull()) {
             coinAmount += bakcStaked.coinAmount;
-            IERC20Upgradeable(bakc).safeTransferFrom(address(this), address(proxy), bakcStaked.tokenId);
+            IERC721Upgradeable(bakc).safeTransferFrom(address(this), address(proxy), bakcStaked.tokenId);
         }
 
         if (!coinStaked.isNull()) {
@@ -277,33 +272,47 @@ contract StakeManager is
         proxy.initialize(address(this), bayc, mayc, bakc, boundBayc, boundMayc, apeCoin, address(apeCoinStaking));
         proxy.stake(apeStaked, bakcStaked, coinStaked);
         proxies[address(proxy)] = true;
-        // add staked proxy
         uint256 tokenId = proxy.apeStaked().tokenId;
-        _stakedProxies[ape][tokenId].add(address(proxy));
         emit Staked(address(proxy), apeStaked.offerHash, bakcStaked.offerHash, coinStaked.offerHash);
+
+        // add staked proxy
+        _stakedProxies[apeCollection][tokenId].add(address(proxy));
     }
 
     function unStakeBeforeBNFTBurn(address bNftAddress, uint256 tokenId) external onlyCaller(matcher) whenNotPaused {
         lendPoolAddressedProvider.getLendPoolLoan().addLoanRepaidInterceptor(bNftAddress, tokenId);
     }
 
-    function _unStake(IStakerProxy proxy, address staker) internal {
-        proxy.unStake();
-        // remove staked proxy
-        address ape = IBNFT(proxy.apeStaked().collection).underlyingAsset();
+    function _unStake(IStakeProxy proxy, address staker) internal {
+        address apeCollection = IBNFT(proxy.apeStaked().collection).underlyingAsset();
         uint256 tokenId = proxy.apeStaked().tokenId;
-        _stakedProxies[ape][tokenId].remove(address(proxy));
+        IERC20Upgradeable(apeCollection).safeTransferFrom(address(this), address(proxy), tokenId);
+        proxy.unStake();
+
         emit UnStaked(address(proxy));
         uint256 amount = proxy.withdraw(staker);
         if (amount > 0) {
             emit Withdrawn(staker, amount);
         }
-        _claim(proxy, staker);
+        (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);
+        if (toStaker > 0) {
+            emit Claimed(staker, toStaker);
+        }
+        if (toFee > 0) {
+            emit FeePaid(staker, feeRecipient, toFee);
+        }
+
+        // remove staked proxy
+        _stakedProxies[apeCollection][tokenId].remove(address(proxy));
     }
 
-    function _claim(IStakerProxy proxy, address staker) internal {
-        IStakerProxy stakerProxy = IStakerProxy(proxy);
-        (uint256 toStaker, uint256 toFee) = stakerProxy.claim(staker, fee, feeRecipient);
+    function _claim(IStakeProxy proxy, address staker) internal {
+        address apeCollection = IBNFT(proxy.apeStaked().collection).underlyingAsset();
+        uint256 tokenId = proxy.apeStaked().tokenId;
+
+        IERC721Upgradeable(apeCollection).safeTransferFrom(address(this), address(proxy), tokenId);
+
+        (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);
         if (toStaker > 0) {
             emit Claimed(staker, toStaker);
         }
@@ -325,27 +334,26 @@ contract StakeManager is
         require(boundApe.ownerOf(nftTokenId) == _msgSender(), "Borrow: no bnft ownership");
         require(boundApe.minterOf(nftTokenId) == address(this), "Borrow: not bnft minter");
         boundApe.burn(nftTokenId);
+
         ILendPool pool = lendPoolAddressedProvider.getLendPool();
         ILendPoolLoan poolLoan = lendPoolAddressedProvider.getLendPoolLoan();
-
-        uint256 loanId = poolLoan.getCollateralLoanId(nftAsset, nftTokenId);
-        if (loanId == 0) {
-            IERC721Upgradeable(nftAsset).safeTransferFrom(_msgSender(), address(this), nftTokenId);
-        }
-
+        poolLoan.addLoanRepaidInterceptor(nftAsset, nftTokenId);
         pool.borrow(address(WETH), amount, nftAsset, nftTokenId, _msgSender(), 0);
         WETH.withdraw(amount);
         AddressUpgradeable.sendValue(payable(_msgSender()), amount);
     }
 
-    function claimable(IStakerProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
-        IStakerProxy stakerProxy = IStakerProxy(proxy);
-        return stakerProxy.claimable(staker);
+    function getApeCoinCap(uint256 poolId) external view returns (uint256) {
+        IApeCoinStaking.Pool memory pool = apeCoinStaking.pools(poolId);
+        return pool.timeRanges[pool.lastRewardsRangeIndex].capPerPosition;
     }
 
-    function withdrawable(IStakerProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
-        IStakerProxy stakerProxy = IStakerProxy(proxy);
-        return stakerProxy.withdrawable(staker);
+    function claimable(IStakeProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
+        return proxy.claimable(staker);
+    }
+
+    function withdrawable(IStakeProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
+        return proxy.withdrawable(staker);
     }
 
     function _isBoundApe(address apeCollection) internal view returns (bool) {

@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 import {DataTypes} from "../libraries/DataTypes.sol";
 
-interface IStakingMatcher {
+interface IStakeMatcher {
     event OffersMatched(DataTypes.ApeOffer apeOffer, DataTypes.BakcOffer backOffer, DataTypes.CoinOffer coinOffer);
 
     event OffersCanceled(address indexed user, uint256[] offerNonces);
@@ -11,7 +11,7 @@ interface IStakingMatcher {
 
     function matchWithBakcAndCoin(
         DataTypes.ApeOffer calldata apeOffer,
-        DataTypes.BakcOffer calldata backOffer,
+        DataTypes.BakcOffer calldata bakcOffer,
         DataTypes.CoinOffer calldata coinOffer
     ) external;
 

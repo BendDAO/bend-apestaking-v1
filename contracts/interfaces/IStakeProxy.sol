@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 import {DataTypes} from "../libraries/DataTypes.sol";
 
-interface IStakerProxy {
+interface IStakeProxy {
     function initialize(
         address owner_,
         address bayc_,

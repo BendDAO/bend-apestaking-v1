@@ -8,12 +8,12 @@ import {ECDSAUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/crypto
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import {IBNFT, IERC721Upgradeable} from "./interfaces/IBNFT.sol";
-import {IStakingMatcher, DataTypes} from "./interfaces/IStakingMatcher.sol";
+import {IStakeMatcher, DataTypes} from "./interfaces/IStakeMatcher.sol";
 import {IStakeManager} from "./interfaces/IStakeManager.sol";
 import {ILendPoolAddressesProvider, ILendPool, ILendPoolLoan} from "./interfaces/ILendPoolAddressesProvider.sol";
 import {PercentageMath} from "./libraries/PercentageMath.sol";
 
-contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using DataTypes for DataTypes.ApeOffer;
     using DataTypes for DataTypes.BakcOffer;
@@ -24,10 +24,6 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
 
     string public constant NAME = "BendStakeMatcher";
     string public constant VERSION = "1";
-
-    uint256 public constant BAYC_POOL_MAX_COIN_CAP = 10094 * 1e18;
-    uint256 public constant MAYC_POOL_MAX_COIN_CAP = 2042 * 1e18;
-    uint256 public constant BAKC_POOL_MAX_COIN_CAP = 856 * 1e18;
 
     uint256 private _CACHED_CHAIN_ID;
     address private _CACHED_THIS;
@@ -82,7 +78,7 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
         DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, _HASHED_NAME, _HASHED_VERSION);
     }
 
-    function cancelOffers(uint256[] calldata offerNonces) external override {
+    function cancelOffers(uint256[] calldata offerNonces) external override nonReentrant {
         require(offerNonces.length > 0, "Cancel: can not be empty");
 
         for (uint256 i = 0; i < offerNonces.length; i++) {
@@ -113,7 +109,8 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
             "Offer: share total amount invalid"
         );
         require(
-            apeOffer.coinAmount + bakcOffer.coinAmount + coinOffer.coinAmount == BAKC_POOL_MAX_COIN_CAP * 1e18,
+            apeOffer.coinAmount + bakcOffer.coinAmount + coinOffer.coinAmount ==
+                stakeManager.getApeCoinCap(DataTypes.BAKC_POOL_ID),
             "Offer: ape coin total amount invalid"
         );
 
@@ -137,7 +134,7 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
         );
 
         require(
-            apeOffer.coinAmount + bakcOffer.coinAmount == BAKC_POOL_MAX_COIN_CAP,
+            apeOffer.coinAmount + bakcOffer.coinAmount == stakeManager.getApeCoinCap(DataTypes.BAKC_POOL_ID),
             "Offer: ape coin total amount invalid"
         );
         DataTypes.CoinStaked memory emptyCoinStaked;
@@ -160,9 +157,9 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
             "Offer: share total amount invalid"
         );
 
-        uint256 maxCap = BAYC_POOL_MAX_COIN_CAP;
+        uint256 maxCap = stakeManager.getApeCoinCap(DataTypes.BAYC_POOL_ID);
         if (apeOffer.collection == mayc || apeOffer.collection == boundMayc) {
-            maxCap = MAYC_POOL_MAX_COIN_CAP;
+            maxCap = stakeManager.getApeCoinCap(DataTypes.MAYC_POOL_ID);
         }
 
         require(apeOffer.coinAmount + coinOffer.coinAmount == maxCap, "Offer: ape coin total amount invalid");
@@ -294,4 +291,6 @@ contract BendStakeMatcher is IStakingMatcher, OwnableUpgradeable, ReentrancyGuar
                 abi.encodePacked(r, s, v)
             );
     }
+
+    function getCapPerPool(uint256 poolId) internal returns (uint256) {}
 }

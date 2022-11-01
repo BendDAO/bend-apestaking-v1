@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 import {DataTypes} from "../libraries/DataTypes.sol";
-import {IStakerProxy} from "./IStakerProxy.sol";
+import {IStakeProxy} from "./IStakeProxy.sol";
 
 interface IStakeManager {
     event Staked(address indexed proxy, bytes32 apeOfferHash, bytes32 bakcOfferHash, bytes32 coinOfferHash);
@@ -12,13 +12,15 @@ interface IStakeManager {
     event Claimed(address indexed staker, uint256 apeCoinAmount);
     event Withdrawn(address indexed staker, uint256 apeCoinAmount);
 
-    function claimable(IStakerProxy proxy, address staker) external view returns (uint256);
+    function claimable(IStakeProxy proxy, address staker) external view returns (uint256);
 
-    function withdrawable(IStakerProxy proxy, address staker) external view returns (uint256);
+    function withdrawable(IStakeProxy proxy, address staker) external view returns (uint256);
 
     function feeRecipient() external view returns (address);
 
     function fee() external view returns (uint256);
+
+    function getApeCoinCap(uint256 poolId) external returns (uint256);
 
     function updateFeeRecipient(address recipient) external;
 
@@ -38,9 +40,9 @@ interface IStakeManager {
         DataTypes.CoinStaked memory coinStaked
     ) external;
 
-    function flashUnstake(IStakerProxy proxy) external;
+    function flashUnstake(IStakeProxy proxy) external;
 
-    function flashClaim(IStakerProxy proxy) external;
+    function flashClaim(IStakeProxy proxy) external;
 
     function unStakeBeforeBNFTBurn(address bNftAddress, uint256 tokenId) external;
 

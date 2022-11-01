@@ -27,16 +27,16 @@ task("deploy:full", "Deploy all contracts").setAction(async (_, { run }) => {
   await run("set-DRE");
   await run("compile");
 
-  await run("deploy:StakerProxy");
+  await run("deploy:StakeProxy");
   await run("deploy:StakeManager");
   await run("deploy:BendStakeMatcher");
   await run("deploy:Config");
 });
 
-task("deploy:StakerProxy", "Deploy StakerProxy").setAction(async (_, { run }) => {
+task("deploy:StakeProxy", "Deploy StakeProxy").setAction(async (_, { run }) => {
   await run("set-DRE");
   await run("compile");
-  await deployContract("StakerProxy", [], true);
+  await deployContract("StakeProxy", [], true);
 });
 
 task("deploy:StakeManager", "Deploy StakeManager").setAction(async (_, { network, run }) => {
@@ -53,7 +53,7 @@ task("deploy:StakeManager", "Deploy StakeManager").setAction(async (_, { network
   const bakc = getParams(BAKC, network.name);
   const bendAddressesProvider = getParams(BendAddressesProviders, network.name);
   const apeStaking = getParams(APE_STAKING, network.name);
-  const stakerProxy = await getContractAddressFromDB("StakerProxy");
+  const stakerProxy = await getContractAddressFromDB("StakeProxy");
   await deployProxyContract(
     "StakeManager",
     [bayc, mayc, bakc, bBayc, bMayc, apeCoin, weth, apeStaking, stakerProxy, bendAddressesProvider],

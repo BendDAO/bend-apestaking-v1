@@ -11,12 +11,12 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
-import {IStakerProxy, DataTypes} from "./interfaces/IStakerProxy.sol";
+import {IStakeProxy, DataTypes} from "./interfaces/IStakeProxy.sol";
 import {IBNFT} from "./interfaces/IBNFT.sol";
 import {IApeCoinStaking} from "./interfaces/IApeCoinStaking.sol";
 import {PercentageMath} from "./libraries/PercentageMath.sol";
 
-contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, ERC721Holder {
+contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC721Holder {
     using DataTypes for DataTypes.BakcStaked;
     using DataTypes for DataTypes.CoinStaked;
     using SafeERC20 for IERC20;
@@ -27,9 +27,6 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
     uint256 public override version = 1;
 
     uint8 private constant PRECISION = 10;
-    uint256 private constant BAYC_POOL_ID = 1;
-    uint256 private constant MAYC_POOL_ID = 2;
-    uint256 private constant BAKC_POOL_ID = 3;
 
     enum PoolType {
         UNKNOWN,
@@ -41,6 +38,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
 
     mapping(address => uint256) public pendingRewards;
     mapping(address => uint256) public pendingWithdraw;
+
     DataTypes.ApeStaked private _apeStaked;
     DataTypes.BakcStaked private _bakcStaked;
     DataTypes.CoinStaked private _coinStaked;
@@ -61,7 +59,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
     modifier onlyStaker(address staker) {
         require(
             staker == _apeStaked.staker || staker == _bakcStaked.staker || staker == _coinStaked.staker,
-            "StakerProxy: not valid staker"
+            "StakeProxy: not valid staker"
         );
         _;
     }
@@ -106,7 +104,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
             return 0;
         }
         IApeCoinStaking.Position memory _position;
-        if (poolId == BAKC_POOL_ID) {
+        if (poolId == DataTypes.BAKC_POOL_ID) {
             _position = apeCoinStaking.nftPosition(poolId, _bakcStaked.tokenId);
         } else {
             _position = apeCoinStaking.nftPosition(poolId, _apeStaked.tokenId);
@@ -116,6 +114,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
 
         int256 accumulatedApeCoins = (_position.stakedAmount * pool.accumulatedRewardsPerShare).toInt256();
         uint256 rewardsToBeClaimed = (accumulatedApeCoins - _position.rewardsDebt).toUint256() / 1e18;
+
         (uint256 apeRewards, uint256 bakcRewards, uint256 coinRewards) = _computeRawards(rewardsToBeClaimed);
         if (staker == _apeStaked.staker) {
             return pendingRewards[staker] + apeRewards;
@@ -135,7 +134,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
     }
 
     function unStake() external override onlyOwner nonReentrant {
-        require(!unStaked, "StakerProxy: already unstaked");
+        require(!unStaked, "StakeProxy: already unstaked");
         _withdraw();
         unStaked = true;
     }
@@ -185,7 +184,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
         if (_isBoundApe(apeCollection)) {
             apeCollection = IBNFT(apeCollection).underlyingAsset();
         }
-        IERC721(apeCollection).safeTransferFrom(address(this), owner(), apeStaked_.tokenId);
+        IERC721(apeCollection).safeTransferFrom(address(this), _msgSender(), apeStaked_.tokenId);
     }
 
     function claim(
@@ -259,6 +258,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
             apeRewards = rewardsAmount.percentMul(_apeStaked.apeShare);
             bakcRewards = rewardsAmount.percentMul(_bakcStaked.bakcShare);
             coinRewards = rewardsAmount - apeRewards - bakcRewards;
+
             if (_apeStaked.coinAmount > 0) {
                 uint256 coinSharedRewards = (_apeStaked.coinAmount * 10**10) / maxCap / 10**10;
                 apeRewards += coinSharedRewards;
@@ -303,17 +303,18 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
     function _withdraw() internal {
         uint256 coinAmount = _totalStakedCoinAmount();
         uint256 preBalance = IERC20(apeCoin).balanceOf(address(this));
+
         if (poolType == PoolType.SINGLE_BAYC || poolType == PoolType.SINGLE_MAYC) {
             IApeCoinStaking.SingleNft[] memory nfts = new IApeCoinStaking.SingleNft[](1);
             nfts[0] = IApeCoinStaking.SingleNft({tokenId: _apeStaked.tokenId, amount: coinAmount});
             if (poolType == PoolType.SINGLE_BAYC) {
                 apeCoinStaking.withdrawBAYC(nfts, address(this));
             } else {
-                apeCoinStaking.withdrawBAYC(nfts, address(this));
+                apeCoinStaking.withdrawMAYC(nfts, address(this));
             }
         }
 
-        if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.SINGLE_MAYC) {
+        if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
             IApeCoinStaking.PairNftWithAmount[] memory nfts = new IApeCoinStaking.PairNftWithAmount[](1);
             nfts[0] = IApeCoinStaking.PairNftWithAmount({
                 mainTokenId: _apeStaked.tokenId,
@@ -327,6 +328,7 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
                 apeCoinStaking.withdrawBAKC(emptyNfts, nfts);
             }
         }
+
         pendingWithdraw[_apeStaked.staker] += _apeStaked.coinAmount;
         if (!_bakcStaked.isNull()) {
             pendingWithdraw[_bakcStaked.staker] += _bakcStaked.coinAmount;
@@ -351,13 +353,13 @@ contract StakerProxy is IStakerProxy, Initializable, Ownable, ReentrancyGuard, E
 
     function _getPoolId() internal view returns (uint256) {
         if (poolType == PoolType.SINGLE_BAYC) {
-            return BAYC_POOL_ID;
+            return DataTypes.BAYC_POOL_ID;
         } else if (poolType == PoolType.SINGLE_MAYC) {
-            return MAYC_POOL_ID;
+            return DataTypes.MAYC_POOL_ID;
         } else if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
-            return BAKC_POOL_ID;
+            return DataTypes.BAKC_POOL_ID;
         }
-        return 0;
+        revert("Error pool id");
     }
 
     function _isBoundApe(address apeCollection) internal view returns (bool) {

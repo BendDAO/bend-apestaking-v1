@@ -2,6 +2,9 @@
 pragma solidity 0.8.9;
 
 library DataTypes {
+    uint256 internal constant BAYC_POOL_ID = 1;
+    uint256 internal constant MAYC_POOL_ID = 2;
+    uint256 internal constant BAKC_POOL_ID = 3;
     enum PoolType {
         UNKNOWN,
         SINGLE,
