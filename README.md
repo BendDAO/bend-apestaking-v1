@@ -22,4 +22,5 @@ This project contains all smart contracts used for the current BendDAO ApeCoin S
 - Staking Proxy contract
 
 ## Documentation
+
 TBD
