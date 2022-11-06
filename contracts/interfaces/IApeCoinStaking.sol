@@ -36,9 +36,33 @@ interface IApeCoinStaking {
         TimeRange[] timeRanges;
     }
 
+    struct DashboardStake {
+        uint256 poolId;
+        uint256 tokenId;
+        uint256 deposited;
+        uint256 unclaimed;
+        uint256 rewards24hr;
+        DashboardPair pair;
+    }
+
+    struct DashboardPair {
+        uint256 mainTokenId;
+        uint256 mainTypePoolId;
+    }
+
+    function getSplitStakes(address _address) external view returns (DashboardStake[] memory);
+
+    function stakedTotal(address _addr) external view returns (uint256);
+
     function pools(uint256 poolId) external view returns (Pool memory);
 
     function nftPosition(uint256 poolId, uint256 tokenId) external view returns (Position memory);
+
+    function pendingRewards(
+        uint256 _poolId,
+        address _address,
+        uint256 _tokenId
+    ) external view returns (uint256);
 
     function depositBAYC(SingleNft[] calldata _nfts) external;
 

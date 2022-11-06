@@ -2,6 +2,12 @@
 pragma solidity 0.8.9;
 
 interface ILendPoolLoan {
+    function setFlashLoanLocking(
+        address nftAsset,
+        uint256 tokenId,
+        bool locked
+    ) external;
+
     function addLoanRepaidInterceptor(address nftAsset, uint256 tokenId) external;
 
     function deleteLoanRepaidInterceptor(address nftAsset, uint256 tokenId) external;

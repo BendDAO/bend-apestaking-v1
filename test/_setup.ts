@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { ethers, network } from "hardhat";
+import { ethers, network, upgrades } from "hardhat";
 import { parseEther } from "ethers/lib/utils";
 import {
   IWETH,
@@ -9,9 +9,13 @@ import {
   IERC721,
   ILendPoolAddressesProvider,
   IApeCoinStaking,
+  IStakeProxy,
+  IStakeManager,
+  IStakeMatcher,
 } from "../typechain-types";
 import {
   APE_COIN,
+  APE_COIN_HOLDER,
   APE_STAKING,
   BAKC,
   BAYC,
@@ -23,7 +27,9 @@ import {
   WETH,
 } from "../tasks/config";
 import { waitForTx } from "../tasks/utils/helpers";
-import { constants } from "ethers";
+import { constants, Contract } from "ethers";
+
+import { impersonateAccount } from "@nomicfoundation/hardhat-network-helpers";
 
 export interface Env {
   initialized: boolean;
@@ -51,26 +57,37 @@ export interface Contracts {
 
   // ape staking
   apeStaking: IApeCoinStaking;
+
+  // bend ape staking
+  stakeProxy: IStakeProxy;
+  stakeManager: IStakeManager;
+  stakeMatcher: IStakeMatcher;
 }
 
 export async function setupEnv(env: Env, contracts: Contracts): Promise<void> {
   env.fee = 100;
-  env.accounts = await ethers.getSigners();
+  env.accounts = (await ethers.getSigners()).slice(0, 6);
   env.admin = env.accounts[0];
   env.chainId = (await ethers.provider.getNetwork()).chainId;
-
+  const apeCoinHolder = getParams(APE_COIN_HOLDER, network.name);
+  await impersonateAccount(apeCoinHolder);
   // init eth
-  const users = env.accounts.slice(1, 10);
-  for (const user of users) {
-    // Each user gets 30 WETH
+  for (const user of env.accounts) {
+    // Each user gets 100 WETH
     waitForTx(await contracts.weth.connect(user).deposit({ value: parseEther("100") }));
+    // Each user gets 10K ape coin
+    waitForTx(
+      await contracts.apeCoin
+        .connect(await ethers.getSigner(apeCoinHolder))
+        .transfer(user.address, parseEther("100000"))
+    );
   }
 
   // add reserve balance for bend
   const lendPool = await ethers.getContractAt("ILendPool", await contracts.bendAddressesProvider.getLendPool());
   waitForTx(await contracts.weth.connect(env.admin).approve(lendPool.address, constants.MaxUint256));
 
-  waitForTx(await lendPool.connect(env.admin).deposit(contracts.weth.address, parseEther("200"), env.admin.address, 0));
+  waitForTx(await lendPool.connect(env.admin).deposit(contracts.weth.address, parseEther("100"), env.admin.address, 0));
 }
 
 export async function setupContracts(): Promise<Contracts> {
@@ -98,6 +115,32 @@ export async function setupContracts(): Promise<Contracts> {
 
   const apeStaking = await ethers.getContractAt("IApeCoinStaking", getParams(APE_STAKING, networkName));
 
+  const stakeProxy = await deployContract<IStakeProxy>("StakeProxy", []);
+
+  const stakeManager = await deployProxyContract("StakeManager", [
+    bayc.address,
+    mayc.address,
+    bakc.address,
+    bBayc.address,
+    bMayc.address,
+    apeCoin.address,
+    weth.address,
+    apeStaking.address,
+    stakeProxy.address,
+    bendAddressesProvider.address,
+  ]);
+
+  const stakeMatcher = await deployProxyContract("BendStakeMatcher", [
+    bayc.address,
+    mayc.address,
+    bakc.address,
+    bBayc.address,
+    bMayc.address,
+    apeCoin.address,
+    stakeManager.address,
+    bendAddressesProvider.address,
+  ]);
+
   /** Return contracts
    */
   return {
@@ -111,7 +154,27 @@ export async function setupContracts(): Promise<Contracts> {
     bakc,
     bendAddressesProvider,
     apeStaking,
+    stakeProxy,
+    stakeManager,
+    stakeMatcher,
   } as Contracts;
+}
+
+async function deployContract<ContractType extends Contract>(contractName: string, args: any[]): Promise<ContractType> {
+  const instance = await (await ethers.getContractFactory(contractName)).deploy(...args);
+
+  return instance as ContractType;
+}
+
+async function deployProxyContract<ContractType extends Contract>(
+  contractName: string,
+  args: any[]
+): Promise<ContractType> {
+  const factory = await ethers.getContractFactory(contractName);
+  const instance = await upgrades.deployProxy(factory, args, {
+    timeout: 0,
+  });
+  return instance as ContractType;
 }
 
 export class Snapshots {

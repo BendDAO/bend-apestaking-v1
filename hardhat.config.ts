@@ -2,10 +2,10 @@ import type { HardhatUserConfig } from "hardhat/types";
 import { task } from "hardhat/config";
 import fs from "fs";
 import path from "path";
-
+import "@nomicfoundation/hardhat-chai-matchers";
 import "@openzeppelin/hardhat-upgrades";
 import "@nomiclabs/hardhat-etherscan";
-import "@nomiclabs/hardhat-waffle";
+import "@nomiclabs/hardhat-ethers";
 import "@typechain/hardhat";
 import "hardhat-abi-exporter";
 import "hardhat-gas-reporter";
@@ -41,8 +41,9 @@ const config: HardhatUserConfig = {
       initialBaseFeePerGas: 0,
       forking: {
         url: NETWORKS_RPC_URL[Network.goerli],
-        blockNumber: 7638791,
+        blockNumber: 7854293,
       },
+      allowUnlimitedContractSize: true,
     },
     goerli: {
       url: NETWORKS_RPC_URL[Network.goerli],

@@ -6,11 +6,15 @@ import {IStakeProxy} from "./IStakeProxy.sol";
 
 interface IStakeManager {
     event Staked(address indexed proxy, bytes32 apeOfferHash, bytes32 bakcOfferHash, bytes32 coinOfferHash);
-    event UnStaked(address indexed proxy);
+    event UnStaked(address indexed proxy, address indexed staker);
 
     event FeePaid(address indexed payer, address indexed feeRecipient, uint256 apeCoinAmount);
     event Claimed(address indexed staker, uint256 apeCoinAmount);
     event Withdrawn(address indexed staker, uint256 apeCoinAmount);
+
+    function getStakedProxies(address nftAsset, uint256 tokenId) external view returns (address[] memory);
+
+    function bakcOwnerOf(uint256 bakcTokenId) external view returns (address);
 
     function claimable(IStakeProxy proxy, address staker) external view returns (uint256);
 
@@ -34,17 +38,17 @@ interface IStakeManager {
         address to
     ) external;
 
-    function flashStake(
+    function stake(
         DataTypes.ApeStaked memory apeStaked,
         DataTypes.BakcStaked memory bakcStaked,
         DataTypes.CoinStaked memory coinStaked
     ) external;
 
-    function flashUnstake(IStakeProxy proxy) external;
+    function unstake(IStakeProxy proxy) external;
 
-    function flashClaim(IStakeProxy proxy) external;
+    function claim(IStakeProxy proxy) external;
 
-    function unStakeBeforeBNFTBurn(address bNftAddress, uint256 tokenId) external;
+    function lockFlashloan(address nftAsset, uint256 tokenId) external;
 
     function borrowETH(
         uint256 amount,

@@ -173,37 +173,43 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         DataTypes.BakcStaked memory bakcStaked,
         DataTypes.CoinStaked memory coinStaked
     ) internal {
-        IERC20Upgradeable _apeCoin = IERC20Upgradeable(apeCoin);
+        IERC20Upgradeable iApeCoin = IERC20Upgradeable(apeCoin);
+        IERC721Upgradeable iApe = IERC721Upgradeable(apeStaked.collection);
+        IERC721Upgradeable iBakc = IERC721Upgradeable(bakc);
+        IBNFT iBoundApe = IBNFT(boundBayc);
+        if (apeStaked.collection == mayc) {
+            iBoundApe = IBNFT(boundMayc);
+        }
+
+        if (iApe.ownerOf(apeStaked.tokenId) == apeStaked.staker) {
+            iApe.safeTransferFrom(apeStaked.staker, address(this), apeStaked.tokenId);
+            stakeManager.mintBoundApe(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
+        } else {
+            require(iBoundApe.ownerOf(apeStaked.tokenId) == apeStaked.staker, "Offer: not ape owner");
+            stakeManager.lockFlashloan(apeStaked.collection, apeStaked.tokenId);
+        }
 
         if (apeStaked.coinAmount > 0) {
-            _apeCoin.safeTransferFrom(apeStaked.staker, address(stakeManager), apeStaked.coinAmount);
+            iApeCoin.safeTransferFrom(apeStaked.staker, address(stakeManager), apeStaked.coinAmount);
         }
 
         if (!bakcStaked.isNull()) {
-            IERC721Upgradeable(bakc).safeTransferFrom(bakcStaked.staker, address(stakeManager), bakcStaked.tokenId);
+            if (iBakc.ownerOf(bakcStaked.tokenId) == bakcStaked.staker) {
+                iBakc.safeTransferFrom(bakcStaked.staker, address(stakeManager), bakcStaked.tokenId);
+            } else {
+                require(stakeManager.bakcOwnerOf(bakcStaked.tokenId) == bakcStaked.staker, "Offer: not bakc owner");
+            }
+
             if (bakcStaked.coinAmount > 0) {
-                _apeCoin.safeTransferFrom(bakcStaked.staker, address(stakeManager), bakcStaked.coinAmount);
+                iApeCoin.safeTransferFrom(bakcStaked.staker, address(stakeManager), bakcStaked.coinAmount);
             }
         }
 
         if ((!coinStaked.isNull()) && coinStaked.coinAmount > 0) {
-            _apeCoin.safeTransferFrom(coinStaked.staker, address(stakeManager), coinStaked.coinAmount);
+            iApeCoin.safeTransferFrom(coinStaked.staker, address(stakeManager), coinStaked.coinAmount);
         }
 
-        if (_isBoundApe(apeStaked.collection)) {
-            address apeCollection = IBNFT(apeStaked.collection).underlyingAsset();
-            stakeManager.unStakeBeforeBNFTBurn(apeCollection, apeStaked.tokenId);
-            apeStaked.collection = apeCollection;
-        } else {
-            IERC721Upgradeable(apeStaked.collection).safeTransferFrom(
-                apeStaked.staker,
-                address(this),
-                apeStaked.tokenId
-            );
-            stakeManager.mintBoundApe(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
-        }
-
-        stakeManager.flashStake(apeStaked, bakcStaked, coinStaked);
+        stakeManager.stake(apeStaked, bakcStaked, coinStaked);
     }
 
     function _isBoundApe(address apeCollection) internal view returns (bool) {
@@ -215,16 +221,23 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
     }
 
     function _validateApeOffer(DataTypes.ApeOffer memory apeOffer, DataTypes.PoolType poolType) internal view {
+        require(apeOffer.staker != address(0), "Offer: invalid ape staker");
         require(_validateOfferNonce(apeOffer.staker, apeOffer.nonce), "Offer: ape offer expired");
-        if (_isBoundApe(apeOffer.collection)) {
-            require(
-                apeOffer.poolType == poolType &&
-                    IBNFT(apeOffer.collection).ownerOf(apeOffer.tokenId) == apeOffer.staker,
-                "Offer: invalid ape offer"
-            );
-        } else {
-            require(apeOffer.poolType == poolType && _isApe(apeOffer.collection), "Offer: invalid ape offer");
+
+        require(_isApe(apeOffer.collection), "Offer: invalid ape collection");
+
+        require(apeOffer.poolType == poolType, "Offer: invalid pool type");
+        IBNFT boundApe = IBNFT(boundBayc);
+        if (apeOffer.collection == mayc) {
+            boundApe = IBNFT(boundMayc);
         }
+
+        // should be ape or bound ape owner
+        require(
+            IERC721Upgradeable(apeOffer.collection).ownerOf(apeOffer.tokenId) == apeOffer.staker ||
+                boundApe.ownerOf(apeOffer.tokenId) == apeOffer.staker,
+            "Offer: not ape owner"
+        );
 
         require(
             _validateOfferSignature(apeOffer.staker, apeOffer.hash(), apeOffer.r, apeOffer.s, apeOffer.v),
@@ -233,7 +246,16 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
     }
 
     function _validateBakcOffer(DataTypes.BakcOffer memory bakcOffer) internal view {
+        require(bakcOffer.staker != address(0), "Offer: invalid bakc staker");
         require(_validateOfferNonce(bakcOffer.staker, bakcOffer.nonce), "Offer: bakc offer expired");
+
+        // should be bakc or staked back owner
+        require(
+            IERC721Upgradeable(bakc).ownerOf(bakcOffer.tokenId) == bakcOffer.staker ||
+                stakeManager.bakcOwnerOf(bakcOffer.tokenId) == bakcOffer.staker,
+            "Offer: not bakc owner"
+        );
+
         require(
             _validateOfferSignature(bakcOffer.staker, bakcOffer.hash(), bakcOffer.r, bakcOffer.s, bakcOffer.v),
             "Offer: invalid bakc offer signature"
@@ -241,6 +263,8 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
     }
 
     function _validateCoinOffer(DataTypes.CoinOffer memory coinOffer) internal view {
+        require(coinOffer.staker != address(0), "Offer: invalid coin staker");
+        require(coinOffer.coinAmount > 0, "Offer: coin amount can't be 0");
         require(_validateOfferNonce(coinOffer.staker, coinOffer.nonce), "Offer: coin offer expired");
         require(
             _validateOfferSignature(coinOffer.staker, coinOffer.hash(), coinOffer.r, coinOffer.s, coinOffer.v),

@@ -52,6 +52,11 @@ export const APE_COIN: Params<string> = {
   [Network.mainnet]: "",
 };
 
+export const APE_COIN_HOLDER: Params<string> = {
+  [Network.goerli]: "0xafF5C36642385b6c7Aaf7585eC785aB2316b5db6",
+  [Network.mainnet]: "",
+};
+
 export const APE_STAKING: Params<string> = {
   [Network.goerli]: "0x7A2113dF0cC592D8ed16a9a2CA7c7c4bd2CE2906",
   [Network.mainnet]: "",
@@ -78,7 +83,7 @@ export const bMAYC: Params<string> = {
 };
 
 export const BAKC: Params<string> = {
-  [Network.goerli]: "0x9420BE07C7c374635059877c3Dc8A088862C9695",
+  [Network.goerli]: "0x49EdA925C67387b4597F4b41817Aaade0542EeD5",
   [Network.mainnet]: "0xba30E5F9Bb24caa003E9f2f0497Ad287FDF95623",
 };
 

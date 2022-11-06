@@ -53,10 +53,10 @@ task("deploy:StakeManager", "Deploy StakeManager").setAction(async (_, { network
   const bakc = getParams(BAKC, network.name);
   const bendAddressesProvider = getParams(BendAddressesProviders, network.name);
   const apeStaking = getParams(APE_STAKING, network.name);
-  const stakerProxy = await getContractAddressFromDB("StakeProxy");
+  const stakeProxy = await getContractAddressFromDB("StakeProxy");
   await deployProxyContract(
     "StakeManager",
-    [bayc, mayc, bakc, bBayc, bMayc, apeCoin, weth, apeStaking, stakerProxy, bendAddressesProvider],
+    [bayc, mayc, bakc, bBayc, bMayc, apeCoin, weth, apeStaking, stakeProxy, bendAddressesProvider],
     true
   );
 });
