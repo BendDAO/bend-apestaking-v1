@@ -50,6 +50,26 @@ interface IApeCoinStaking {
         uint256 mainTypePoolId;
     }
 
+    struct PoolUI {
+        uint256 poolId;
+        uint256 stakedAmount;
+        TimeRange currentTimeRange;
+    }
+
+    function getCurrentTimeRangeIndex(Pool memory pool) external view returns (uint256);
+
+    function getTimeRangeBy(uint256 _poolId, uint256 _index) external view returns (TimeRange memory);
+
+    function getPoolsUI()
+        external
+        view
+        returns (
+            PoolUI memory,
+            PoolUI memory,
+            PoolUI memory,
+            PoolUI memory
+        );
+
     function getSplitStakes(address _address) external view returns (DashboardStake[] memory);
 
     function stakedTotal(address _addr) external view returns (uint256);

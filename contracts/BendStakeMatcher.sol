@@ -110,7 +110,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         );
         require(
             apeOffer.coinAmount + bakcOffer.coinAmount + coinOffer.coinAmount ==
-                stakeManager.getApeCoinCap(DataTypes.BAKC_POOL_ID),
+                stakeManager.getCurrentApeCoinCap(DataTypes.BAKC_POOL_ID),
             "Offer: ape coin total amount invalid"
         );
 
@@ -134,7 +134,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         );
 
         require(
-            apeOffer.coinAmount + bakcOffer.coinAmount == stakeManager.getApeCoinCap(DataTypes.BAKC_POOL_ID),
+            apeOffer.coinAmount + bakcOffer.coinAmount == stakeManager.getCurrentApeCoinCap(DataTypes.BAKC_POOL_ID),
             "Offer: ape coin total amount invalid"
         );
         DataTypes.CoinStaked memory emptyCoinStaked;
@@ -157,9 +157,9 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
             "Offer: share total amount invalid"
         );
 
-        uint256 maxCap = stakeManager.getApeCoinCap(DataTypes.BAYC_POOL_ID);
+        uint256 maxCap = stakeManager.getCurrentApeCoinCap(DataTypes.BAYC_POOL_ID);
         if (apeOffer.collection == mayc || apeOffer.collection == boundMayc) {
-            maxCap = stakeManager.getApeCoinCap(DataTypes.MAYC_POOL_ID);
+            maxCap = stakeManager.getCurrentApeCoinCap(DataTypes.MAYC_POOL_ID);
         }
 
         require(apeOffer.coinAmount + coinOffer.coinAmount == maxCap, "Offer: ape coin total amount invalid");

@@ -24,7 +24,7 @@ interface IStakeManager {
 
     function fee() external view returns (uint256);
 
-    function getApeCoinCap(uint256 poolId) external returns (uint256);
+    function getCurrentApeCoinCap(uint256 poolId) external returns (uint256);
 
     function updateFeeRecipient(address recipient) external;
 

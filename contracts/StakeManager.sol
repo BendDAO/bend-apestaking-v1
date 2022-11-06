@@ -474,9 +474,30 @@ contract StakeManager is
         return IBNFT(boundBayc);
     }
 
-    function getApeCoinCap(uint256 poolId) external view returns (uint256) {
-        IApeCoinStaking.Pool memory pool = apeCoinStaking.pools(poolId);
-        return pool.timeRanges[pool.lastRewardsRangeIndex].capPerPosition;
+    function getCurrentApeCoinCap(uint256 poolId) external view returns (uint256) {
+        return _getCurrentTimeRange(poolId).capPerPosition;
+    }
+
+    function _getCurrentTimeRange(uint256 poolId) internal view returns (IApeCoinStaking.TimeRange memory) {
+        (
+            ,
+            IApeCoinStaking.PoolUI memory baycPoolUI,
+            IApeCoinStaking.PoolUI memory maycPoolUI,
+            IApeCoinStaking.PoolUI memory bakcPoolUI
+        ) = apeCoinStaking.getPoolsUI();
+
+        if (poolId == DataTypes.BAYC_POOL_ID && poolId == baycPoolUI.poolId) {
+            return baycPoolUI.currentTimeRange;
+        }
+
+        if (poolId == DataTypes.MAYC_POOL_ID && poolId == maycPoolUI.poolId) {
+            return maycPoolUI.currentTimeRange;
+        }
+        if (poolId == DataTypes.BAKC_POOL_ID && poolId == bakcPoolUI.poolId) {
+            return bakcPoolUI.currentTimeRange;
+        }
+
+        revert("StakeManager: invalid pool id");
     }
 
     function claimable(IStakeProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
