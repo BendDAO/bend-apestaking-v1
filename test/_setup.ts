@@ -83,6 +83,12 @@ export async function setupEnv(env: Env, contracts: Contracts): Promise<void> {
     );
   }
 
+  waitForTx(
+    await contracts.apeCoin
+      .connect(await ethers.getSigner(apeCoinHolder))
+      .transfer(contracts.apeStaking.address, parseEther("10000000"))
+  );
+
   // add reserve balance for bend
   const lendPool = await ethers.getContractAt("ILendPool", await contracts.bendAddressesProvider.getLendPool());
   waitForTx(await contracts.weth.connect(env.admin).approve(lendPool.address, constants.MaxUint256));

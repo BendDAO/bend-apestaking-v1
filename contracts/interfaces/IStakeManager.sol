@@ -14,8 +14,6 @@ interface IStakeManager {
 
     function getStakedProxies(address nftAsset, uint256 tokenId) external view returns (address[] memory);
 
-    function bakcOwnerOf(uint256 bakcTokenId) external view returns (address);
-
     function claimable(IStakeProxy proxy, address staker) external view returns (uint256);
 
     function withdrawable(IStakeProxy proxy, address staker) external view returns (uint256);

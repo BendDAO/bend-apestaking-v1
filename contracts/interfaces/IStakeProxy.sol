@@ -48,7 +48,7 @@ interface IStakeProxy {
 
     function unStaked() external view returns (bool);
 
-    function claimable(address staker) external view returns (uint256);
+    function claimable(address staker, uint256 fee) external view returns (uint256);
 
     function withdrawable(address staker) external view returns (uint256);
 

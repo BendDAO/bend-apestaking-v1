@@ -194,12 +194,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         }
 
         if (!bakcStaked.isNull()) {
-            if (iBakc.ownerOf(bakcStaked.tokenId) == bakcStaked.staker) {
-                iBakc.safeTransferFrom(bakcStaked.staker, address(stakeManager), bakcStaked.tokenId);
-            } else {
-                require(stakeManager.bakcOwnerOf(bakcStaked.tokenId) == bakcStaked.staker, "Offer: not bakc owner");
-            }
-
+            iBakc.safeTransferFrom(bakcStaked.staker, address(stakeManager), bakcStaked.tokenId);
             if (bakcStaked.coinAmount > 0) {
                 iApeCoin.safeTransferFrom(bakcStaked.staker, address(stakeManager), bakcStaked.coinAmount);
             }
@@ -250,11 +245,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         require(_validateOfferNonce(bakcOffer.staker, bakcOffer.nonce), "Offer: bakc offer expired");
 
         // should be bakc or staked back owner
-        require(
-            IERC721Upgradeable(bakc).ownerOf(bakcOffer.tokenId) == bakcOffer.staker ||
-                stakeManager.bakcOwnerOf(bakcOffer.tokenId) == bakcOffer.staker,
-            "Offer: not bakc owner"
-        );
+        require(IERC721Upgradeable(bakc).ownerOf(bakcOffer.tokenId) == bakcOffer.staker, "Offer: not bakc owner");
 
         require(
             _validateOfferSignature(bakcOffer.staker, bakcOffer.hash(), bakcOffer.r, bakcOffer.s, bakcOffer.v),

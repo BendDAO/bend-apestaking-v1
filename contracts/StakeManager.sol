@@ -44,7 +44,6 @@ contract StakeManager is
     }
     NFTProxy.Proxies private _stakedProxies;
     mapping(address => bool) public proxies;
-    mapping(uint256 => address) public override bakcOwnerOf;
 
     address public override feeRecipient;
     uint256 public override fee;
@@ -265,10 +264,6 @@ contract StakeManager is
             "StakeManager: not ape collection"
         );
 
-        if (!bakcStaked.isNull() && bakcOwnerOf[bakcStaked.tokenId] != address(0)) {
-            require(bakcOwnerOf[bakcStaked.tokenId] == bakcStaked.staker, "StakeManager: not bakc owner");
-        }
-
         IERC721Upgradeable iApe = IERC721Upgradeable(apeStaked.collection);
 
         // clone proxy
@@ -306,7 +301,6 @@ contract StakeManager is
         _stakedProxies.add(apeStaked.collection, apeStaked.tokenId, address(proxy));
         if (!bakcStaked.isNull()) {
             _stakedProxies.add(address(bakc), bakcStaked.tokenId, address(proxy));
-            bakcOwnerOf[bakcStaked.tokenId] = bakcStaked.staker;
         }
     }
 
@@ -340,8 +334,8 @@ contract StakeManager is
         if (toFee > 0) {
             emit FeePaid(staker, feeRecipient, toFee);
         }
-        // withdraw nft
-        _withdrawNFTIfNecessary(proxy, staker);
+        // withdraw ape
+        _withdrawApe(proxy, staker);
     }
 
     function _unStakeProxy(IStakeProxy proxy, address staker) internal {
@@ -355,17 +349,14 @@ contract StakeManager is
 
         // should transfer nft to proxy when unstake
         iApe.safeTransferFrom(address(this), address(proxy), apeStaked.tokenId);
-        if (!bakcStaked.isNull()) {
-            bakc.safeTransferFrom(address(this), address(proxy), bakcStaked.tokenId);
-        }
 
         // do proxy unstake
         proxy.unStake();
 
         // check nft ownership
         require(iApe.ownerOf(apeStaked.tokenId) == address(this), "StakeManager: not ape owner");
+
         if (!bakcStaked.isNull()) {
-            require(bakc.ownerOf(bakcStaked.tokenId) == address(this), "StakeManager: not bakc owner");
             // remove staked proxy for bakc
             _stakedProxies.remove(address(bakc), bakcStaked.tokenId, address(proxy));
         }
@@ -375,70 +366,51 @@ contract StakeManager is
         emit UnStaked(address(proxy), staker);
     }
 
-    function _withdrawNFTIfNecessary(IStakeProxy proxy, address staker) internal {
+    function _withdrawApe(IStakeProxy proxy, address staker) internal {
         if (!proxy.unStaked()) {
             return;
         }
-        DataTypes.ApeStaked memory apeStaked = proxy.apeStaked();
-        DataTypes.BakcStaked memory bakcStaked = proxy.bakcStaked();
 
+        DataTypes.ApeStaked memory apeStaked = proxy.apeStaked();
         address apeCollection = apeStaked.collection;
         uint256 apeTokenId = apeStaked.tokenId;
         address apeStaker = apeStaked.staker;
+        IBNFT boundApe = _getBNFT(apeCollection);
 
-        address bakcStaker = bakcStaked.staker;
-        uint256 bakcTokenId = bakcStaked.tokenId;
-
-        if (_stakedProxies.isEmpty(apeCollection, apeTokenId) && staker == apeStaker) {
-            // burn bound ape if all prox unstaked and no debt in lending pool
-            IBNFT boundApe = _getBNFT(apeCollection);
-            if (boundApe.minterOf(apeTokenId) == address(this) && boundApe.ownerOf(apeTokenId) == apeStaker) {
-                boundApe.setFlashLoanLocking(apeTokenId, address(this), false);
-                boundApe.burn(apeTokenId);
-                IERC721Upgradeable(apeCollection).safeTransferFrom(address(this), apeStaker, apeTokenId);
-            }
+        if (!_stakedProxies.isEmpty(apeCollection, apeTokenId)) {
+            return;
         }
+
         if (
-            _stakedProxies.isEmpty(address(bakc), bakcTokenId) &&
-            bakcStaker == staker &&
-            bakcOwnerOf[bakcTokenId] == staker
+            staker == apeStaker &&
+            boundApe.minterOf(apeTokenId) == address(this) &&
+            boundApe.ownerOf(apeTokenId) == apeStaker
         ) {
-            bakc.safeTransferFrom(address(this), bakcStaker, bakcTokenId);
-            bakcOwnerOf[bakcTokenId] = address(0);
+            boundApe.burn(apeTokenId);
+            boundApe.setFlashLoanLocking(apeTokenId, address(this), false);
+            IERC721Upgradeable(apeCollection).safeTransferFrom(address(this), apeStaker, apeTokenId);
+        } else {
+            ILendPoolLoan poolLoan = lendPoolAddressedProvider.getLendPoolLoan();
+            poolLoan.setFlashLoanLocking(apeCollection, apeTokenId, false);
+            poolLoan.deleteLoanRepaidInterceptor(apeCollection, apeTokenId);
         }
     }
 
     function _claim(IStakeProxy proxy, address staker) internal {
-        bool nftTransfered = false;
-
         DataTypes.ApeStaked memory apeStaked = proxy.apeStaked();
-        DataTypes.BakcStaked memory bakcStaked = proxy.bakcStaked();
 
         address apeCollection = apeStaked.collection;
         uint256 apeTokenId = apeStaked.tokenId;
-        uint256 bakcTokenId = bakcStaked.tokenId;
 
         IERC721Upgradeable iApe = IERC721Upgradeable(apeCollection);
 
         // should transfer ape to proxy if not unstaked
         if (!proxy.unStaked()) {
             iApe.safeTransferFrom(address(this), address(proxy), apeTokenId);
-            if (!bakcStaked.isNull()) {
-                bakc.safeTransferFrom(address(this), address(proxy), bakcTokenId);
-            }
-            nftTransfered = true;
         }
 
         // claim rewards for staker
         (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);
-
-        // check nft ownership
-        if (nftTransfered) {
-            require(iApe.ownerOf(apeTokenId) == address(this), "StakeManager: not ape owner");
-            if (!bakcStaked.isNull()) {
-                require(bakc.ownerOf(bakcTokenId) == address(this), "StakeManager: not bakc owner");
-            }
-        }
 
         if (toStaker > 0) {
             emit Claimed(staker, toStaker);
@@ -501,7 +473,7 @@ contract StakeManager is
     }
 
     function claimable(IStakeProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
-        return proxy.claimable(staker);
+        return proxy.claimable(staker, fee);
     }
 
     function withdrawable(IStakeProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
