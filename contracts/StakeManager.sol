@@ -221,7 +221,7 @@ contract StakeManager is
         IBNFT boundApe = _getBNFT(apeCollection);
         IERC721Upgradeable(apeCollection).approve(address(boundApe), tokenId);
         boundApe.mint(to, tokenId);
-        boundApe.setFlashLoanLocking(tokenId, true);
+        boundApe.setFlashLoanLocking(tokenId, address(this), true);
     }
 
     function unstake(IStakeProxy proxy) external override onlyStaker(proxy) {
@@ -393,7 +393,7 @@ contract StakeManager is
             // burn bound ape if all prox unstaked and no debt in lending pool
             IBNFT boundApe = _getBNFT(apeCollection);
             if (boundApe.minterOf(apeTokenId) == address(this) && boundApe.ownerOf(apeTokenId) == apeStaker) {
-                boundApe.setFlashLoanLocking(apeTokenId, false);
+                boundApe.setFlashLoanLocking(apeTokenId, address(this), false);
                 boundApe.burn(apeTokenId);
                 IERC721Upgradeable(apeCollection).safeTransferFrom(address(this), apeStaker, apeTokenId);
             }
