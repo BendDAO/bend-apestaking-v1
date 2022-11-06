@@ -352,9 +352,6 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
                 IERC721(_apeStaked.collection).ownerOf(_apeStaked.tokenId) == address(this),
                 "StakeProxy: not ape owner"
             );
-            if (!_bakcStaked.isNull()) {
-                require(bakc.ownerOf(_bakcStaked.tokenId) == address(this), "StakeProxy: not bakc owner");
-            }
             uint256 preBalance = apeCoin.balanceOf(address(this));
             if (poolType == PoolType.SINGLE_BAYC || poolType == PoolType.SINGLE_MAYC) {
                 uint256[] memory nfts = new uint256[](1);
@@ -367,6 +364,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
             }
 
             if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
+                require(bakc.ownerOf(_bakcStaked.tokenId) == address(this), "StakeProxy: not bakc owner");
                 IApeCoinStaking.PairNft[] memory nfts = new IApeCoinStaking.PairNft[](1);
                 nfts[0] = IApeCoinStaking.PairNft({mainTokenId: _apeStaked.tokenId, bakcTokenId: _bakcStaked.tokenId});
                 IApeCoinStaking.PairNft[] memory emptyNfts;

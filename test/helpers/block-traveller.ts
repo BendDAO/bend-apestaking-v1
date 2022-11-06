@@ -45,7 +45,7 @@ export async function advanceBlockTo(targetBlock: BigNumber): Promise<void> {
 export async function increaseTo(targetTime: BigNumber): Promise<void> {
   const currentTime = BigNumber.from(await latest());
   if (targetTime.lt(currentTime)) {
-    throw Error(`Target·time·(${targetTime})·is·lower·than·current·time·#(${currentTime})`);
+    throw Error(`Target time: (${targetTime}) is lower than current time: #(${currentTime})`);
   }
 
   await network.provider.send("evm_setNextBlockTimestamp", [targetTime.toHexString()]);
