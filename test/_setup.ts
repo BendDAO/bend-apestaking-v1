@@ -75,7 +75,7 @@ export async function setupEnv(env: Env, contracts: Contracts): Promise<void> {
   for (const user of env.accounts) {
     // Each user gets 100 WETH
     waitForTx(await contracts.weth.connect(user).deposit({ value: parseEther("100") }));
-    // Each user gets 10K ape coin
+    // Each user gets 100K ape coin
     waitForTx(
       await contracts.apeCoin
         .connect(await ethers.getSigner(apeCoinHolder))
@@ -86,7 +86,7 @@ export async function setupEnv(env: Env, contracts: Contracts): Promise<void> {
   waitForTx(
     await contracts.apeCoin
       .connect(await ethers.getSigner(apeCoinHolder))
-      .transfer(contracts.apeStaking.address, parseEther("10000000"))
+      .transfer(contracts.apeStaking.address, parseEther("100000000"))
   );
 
   // add reserve balance for bend

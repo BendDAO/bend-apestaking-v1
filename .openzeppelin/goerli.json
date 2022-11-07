@@ -974,7 +974,7 @@
             "label": "stakeManager",
             "offset": 0,
             "slot": "157",
-            "type": "t_contract(IStakeManager)12392",
+            "type": "t_contract(IStakeManager)12394",
             "contract": "BendStakeMatcher",
             "src": "contracts/BendStakeMatcher.sol:36"
           },
@@ -982,7 +982,7 @@
             "label": "lendPoolAddressedProvider",
             "offset": 0,
             "slot": "158",
-            "type": "t_contract(ILendPoolAddressesProvider)12172",
+            "type": "t_contract(ILendPoolAddressesProvider)12174",
             "contract": "BendStakeMatcher",
             "src": "contracts/BendStakeMatcher.sol:37"
           },
@@ -1064,11 +1064,11 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(ILendPoolAddressesProvider)12172": {
+          "t_contract(ILendPoolAddressesProvider)12174": {
             "label": "contract ILendPoolAddressesProvider",
             "numberOfBytes": "20"
           },
-          "t_contract(IStakeManager)12392": {
+          "t_contract(IStakeManager)12394": {
             "label": "contract IStakeManager",
             "numberOfBytes": "20"
           },
@@ -1181,7 +1181,7 @@
             "label": "_stakedProxies",
             "offset": 0,
             "slot": "251",
-            "type": "t_struct(Proxies)13293_storage",
+            "type": "t_struct(Proxies)13295_storage",
             "contract": "StakeManager",
             "src": "contracts/StakeManager.sol:45"
           },
@@ -1213,7 +1213,7 @@
             "label": "boundBayc",
             "offset": 0,
             "slot": "255",
-            "type": "t_contract(IBNFT)12105",
+            "type": "t_contract(IBNFT)12107",
             "contract": "StakeManager",
             "src": "contracts/StakeManager.sol:51"
           },
@@ -1221,7 +1221,7 @@
             "label": "boundMayc",
             "offset": 0,
             "slot": "256",
-            "type": "t_contract(IBNFT)12105",
+            "type": "t_contract(IBNFT)12107",
             "contract": "StakeManager",
             "src": "contracts/StakeManager.sol:52"
           },
@@ -1261,7 +1261,7 @@
             "label": "WETH",
             "offset": 0,
             "slot": "261",
-            "type": "t_contract(IWETH)12650",
+            "type": "t_contract(IWETH)12652",
             "contract": "StakeManager",
             "src": "contracts/StakeManager.sol:59"
           },
@@ -1269,7 +1269,7 @@
             "label": "apeCoinStaking",
             "offset": 0,
             "slot": "262",
-            "type": "t_contract(IApeCoinStaking)12051",
+            "type": "t_contract(IApeCoinStaking)12053",
             "contract": "StakeManager",
             "src": "contracts/StakeManager.sol:61"
           },
@@ -1293,7 +1293,7 @@
             "label": "lendPoolAddressedProvider",
             "offset": 0,
             "slot": "265",
-            "type": "t_contract(ILendPoolAddressesProvider)12172",
+            "type": "t_contract(ILendPoolAddressesProvider)12174",
             "contract": "StakeManager",
             "src": "contracts/StakeManager.sol:67"
           }
@@ -1323,11 +1323,11 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IApeCoinStaking)12051": {
+          "t_contract(IApeCoinStaking)12053": {
             "label": "contract IApeCoinStaking",
             "numberOfBytes": "20"
           },
-          "t_contract(IBNFT)12105": {
+          "t_contract(IBNFT)12107": {
             "label": "contract IBNFT",
             "numberOfBytes": "20"
           },
@@ -1339,11 +1339,11 @@
             "label": "contract IERC721Upgradeable",
             "numberOfBytes": "20"
           },
-          "t_contract(ILendPoolAddressesProvider)12172": {
+          "t_contract(ILendPoolAddressesProvider)12174": {
             "label": "contract ILendPoolAddressesProvider",
             "numberOfBytes": "20"
           },
-          "t_contract(IWETH)12650": {
+          "t_contract(IWETH)12652": {
             "label": "contract IWETH",
             "numberOfBytes": "20"
           },
@@ -1375,7 +1375,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Proxies)13293_storage": {
+          "t_struct(Proxies)13295_storage": {
             "label": "struct NFTProxy.Proxies",
             "members": [
               {

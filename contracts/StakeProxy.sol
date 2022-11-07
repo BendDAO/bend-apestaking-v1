@@ -120,7 +120,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
     function unStake() external override onlyOwner nonReentrant {
         require(poolType != PoolType.UNKNOWN, "StakeProxy: no staking at all");
-        require(!unStaked, "StakeProxy: already unstaked");
+        require(!unStaked, "StakeProxy: already unStaked");
         require(
             IERC721(_apeStaked.collection).ownerOf(_apeStaked.tokenId) == address(this),
             "StakeProxy: not ape owner"
@@ -280,13 +280,14 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         nonReentrant
         returns (uint256 amount)
     {
-        if (unStaked) {
-            amount = pendingWithdraw[staker];
-            if (amount > 0) {
-                apeCoin.safeTransfer(staker, amount);
-            }
-            pendingWithdraw[staker] = 0;
+        require(unStaked, "StakeProxy: can't withdraw");
+
+        amount = pendingWithdraw[staker];
+        if (amount > 0) {
+            apeCoin.safeTransfer(staker, amount);
         }
+        pendingWithdraw[staker] = 0;
+
         if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
             if ((!_bakcStaked.isNull()) && staker == _bakcStaked.staker) {
                 bakc.safeTransferFrom(address(this), _bakcStaked.staker, _bakcStaked.tokenId);
