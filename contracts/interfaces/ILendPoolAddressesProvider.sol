@@ -8,4 +8,6 @@ interface ILendPoolAddressesProvider {
     function getLendPool() external view returns (ILendPool);
 
     function getLendPoolLoan() external view returns (ILendPoolLoan);
+
+    function getLendPoolConfigurator() external view returns (address);
 }

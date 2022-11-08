@@ -1,26 +1,22 @@
 import { expect } from "chai";
 import fc from "fast-check";
-import { formatBytes32String } from "ethers/lib/utils";
 import { ethers } from "hardhat";
 import { Contracts, Env, makeSuite, Snapshots } from "./_setup";
-import { BigNumber, constants, Contract } from "ethers";
+import { BigNumber, constants } from "ethers";
 
 import { MintableERC721, Ownable } from "../typechain-types";
 
 import { DataTypes } from "../typechain-types/contracts/interfaces/IStakeProxy";
 import { advanceBlock, increaseTo, latest } from "./helpers/block-traveller";
 import { impersonateAccount, setBalance } from "@nomicfoundation/hardhat-network-helpers";
-
-export function makeBN18(num: string | number): BigNumber {
-  return ethers.utils.parseUnits(num.toString(), 18);
-}
-
-export const getContract = async <ContractType extends Contract>(
-  contractName: string,
-  address: string
-): Promise<ContractType> => (await ethers.getContractAt(contractName, address)) as ContractType;
-
-const emptyBytes32 = formatBytes32String("");
+import {
+  emptyBytes32,
+  getContract,
+  makeBN18,
+  randomPairedStakeParam,
+  randomSingleStakeParam,
+  randomStakeParam,
+} from "./utils";
 
 /* eslint-disable no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -34,146 +30,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   let poolTokenId: number;
   let pools: any;
 
-  const randomApeBakcCoin = (maxCap: number) => {
-    const shares = fc
-      .array(fc.integer({ min: 100, max: 10000 }), { minLength: 3, maxLength: 3 })
-      .filter((t) => t[0] + t[1] + t[2] === 10000);
-    const stakers = fc.array(fc.integer({ min: 1, max: 5 }), {
-      minLength: 3,
-      maxLength: 3,
-    });
-    const coins = fc
-      .array(fc.integer({ min: 0, max: maxCap }), { minLength: 3, maxLength: 3 })
-      .filter((t) => t[0] + t[1] + t[2] === maxCap);
-
-    const ape = fc.constantFrom(contracts.bayc.address, contracts.mayc.address);
-
-    return fc.tuple(shares, stakers, coins, ape).map((t) => {
-      const [_shares, _stakers, _coins, _ape] = t;
-      return {
-        apeStaked: {
-          offerHash: emptyBytes32,
-          staker: env.accounts[_stakers[0]].address,
-          collection: _ape,
-          tokenId: 100,
-          coinAmount: makeBN18(_coins[0]),
-          apeShare: _shares[0],
-          coinShare: _shares[2],
-        },
-        bakcStaked: {
-          offerHash: emptyBytes32,
-          staker: env.accounts[_stakers[1]].address,
-          tokenId: 100,
-          coinAmount: makeBN18(_coins[1]),
-          bakcShare: _shares[1],
-          coinShare: _shares[2],
-        },
-        coinStaked: {
-          offerHash: emptyBytes32,
-          staker: env.accounts[_stakers[2]].address,
-          coinAmount: makeBN18(_coins[2]),
-          coinShare: _shares[2],
-        },
-        poolId: 3,
-        stakers: new Set<string>([
-          env.accounts[_stakers[0]].address,
-          env.accounts[_stakers[1]].address,
-          env.accounts[_stakers[2]].address,
-        ]),
-      };
-    });
-  };
-
-  const randomApeBakc = (maxCap: number) => {
-    const shares = fc
-      .array(fc.integer({ min: 100, max: 10000 }), { minLength: 3, maxLength: 3 })
-      .filter((t) => t[0] + t[1] + t[2] === 10000);
-    const stakers = fc.array(fc.integer({ min: 1, max: 5 }), {
-      minLength: 2,
-      maxLength: 2,
-    });
-    const coins = fc
-      .array(fc.integer({ min: 0, max: maxCap }), { minLength: 2, maxLength: 2 })
-      .filter((t) => t[0] + t[1] === maxCap);
-
-    const ape = fc.constantFrom(contracts.bayc.address, contracts.mayc.address);
-
-    return fc.tuple(shares, stakers, coins, ape).map((t) => {
-      const [_shares, _stakers, _coins, _ape] = t;
-      return {
-        apeStaked: {
-          offerHash: emptyBytes32,
-          staker: env.accounts[_stakers[0]].address,
-          collection: _ape,
-          tokenId: 100,
-          coinAmount: makeBN18(_coins[0]),
-          apeShare: _shares[0],
-          coinShare: _shares[2],
-        },
-        bakcStaked: {
-          offerHash: emptyBytes32,
-          staker: env.accounts[_stakers[1]].address,
-          tokenId: 100,
-          coinAmount: makeBN18(_coins[1]),
-          bakcShare: _shares[1],
-          coinShare: _shares[2],
-        },
-        poolId: 3,
-        stakers: new Set<string>([env.accounts[_stakers[0]].address, env.accounts[_stakers[1]].address]),
-      };
-    });
-  };
-
-  const randomApeCoin = (maxCap: number, ape: string) => {
-    const shares = fc
-      .array(fc.integer({ min: 1, max: 10000 }), { minLength: 2, maxLength: 2 })
-      .filter((t) => t[0] + t[1] === 10000);
-    const stakers = fc.array(fc.integer({ min: 1, max: 5 }), {
-      minLength: 2,
-      maxLength: 2,
-    });
-
-    const coins = fc
-      .array(fc.integer({ min: 0, max: maxCap }), { minLength: 2, maxLength: 2 })
-      .filter((t) => t[0] + t[1] === maxCap);
-    let poolId = 1;
-    if (ape === contracts.mayc.address) {
-      poolId = 2;
-    }
-
-    return fc.tuple(shares, stakers, coins).map((t) => {
-      const [_shares, _stakers, _coins] = t;
-      return {
-        apeStaked: {
-          offerHash: emptyBytes32,
-          staker: env.accounts[_stakers[0]].address,
-          collection: ape,
-          tokenId: 100,
-          coinAmount: makeBN18(_coins[0]),
-          apeShare: _shares[0],
-          coinShare: _shares[1],
-        },
-        coinStaked: {
-          offerHash: emptyBytes32,
-          staker: env.accounts[_stakers[1]].address,
-          coinAmount: makeBN18(_coins[1]),
-          coinShare: _shares[1],
-        },
-        poolId,
-        stakers: new Set<string>([env.accounts[_stakers[0]].address, env.accounts[_stakers[1]].address]),
-      };
-    });
-  };
-
-  const randomStakeParam = () => {
-    return fc.oneof(
-      randomApeBakcCoin(856),
-      randomApeBakc(856),
-      randomApeCoin(2042, contracts.mayc.address),
-      randomApeCoin(10094, contracts.bayc.address)
-    );
-  };
-  const prepareStakeParam = async (stakedParam: any) => {
+  const prepareForStake = async (stakedParam: any) => {
     await snapshots.revert("init");
     poolTokenId = stakedParam.apeStaked.tokenId;
     poolId = stakedParam.poolId;
@@ -189,23 +46,6 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       .connect(await ethers.getSigner(await stakedParam.apeStaked.staker))
       .mint(await stakedParam.apeStaked.tokenId);
 
-    stakedParam = {
-      bakcStaked: {
-        offerHash: emptyBytes32,
-        staker: constants.AddressZero,
-        tokenId: 0,
-        coinAmount: constants.Zero,
-        bakcShare: constants.Zero,
-        coinShare: constants.Zero,
-      },
-      coinStaked: {
-        offerHash: emptyBytes32,
-        staker: constants.AddressZero,
-        coinAmount: constants.Zero,
-        coinShare: constants.Zero,
-      },
-      ...stakedParam,
-    };
     // console.log(stakedParam);
     apeStaked = stakedParam.apeStaked;
     bakcStaked = stakedParam.bakcStaked;
@@ -214,10 +54,10 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     await snapshots.capture("setStakeParam");
   };
 
-  const generateStakeParam = async (t: fc.Arbitrary<any>) => {
+  const prepareData = async (t: fc.Arbitrary<any>) => {
     await fc.check(
       fc.asyncProperty(t, async (data) => {
-        await prepareStakeParam(data);
+        await prepareForStake(data);
       }),
       { numRuns: 1 }
     );
@@ -352,7 +192,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("onlyOwner: revertions work as expected", async () => {
-    await generateStakeParam(randomStakeParam());
+    await prepareData(randomStakeParam(env, contracts));
     await expect(
       contracts.stakeProxy.connect(env.accounts[1]).stake(apeStaked, bakcStaked, coinStaked)
     ).to.be.revertedWith("Ownable: caller is not the owner");
@@ -427,9 +267,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("stake: revert - ape already staked", async () => {
-    await generateStakeParam(
-      fc.oneof(randomApeCoin(2042, contracts.mayc.address), randomApeCoin(10094, contracts.bayc.address))
-    );
+    await prepareData(randomSingleStakeParam(env, contracts));
     await apeContract
       .connect(await ethers.getSigner(await apeStaked.staker))
       .transferFrom(apeStaked.staker, env.admin.address, apeStaked.tokenId);
@@ -451,7 +289,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("stake: revert - not bakc owner", async () => {
-    await generateStakeParam(fc.oneof(randomApeBakcCoin(856), randomApeBakc(856)));
+    await prepareData(randomPairedStakeParam(env, contracts));
     await apeContract
       .connect(await ethers.getSigner(await apeStaked.staker))
       .transferFrom(apeStaked.staker, contracts.stakeProxy.address, apeStaked.tokenId);
@@ -489,7 +327,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("stake: revert - ERC20: transfer amount exceeds balance", async () => {
-    await generateStakeParam(randomStakeParam());
+    await prepareData(randomStakeParam(env, contracts));
     await apeContract
       .connect(await ethers.getSigner(await apeStaked.staker))
       .transferFrom(apeStaked.staker, contracts.stakeProxy.address, apeStaked.tokenId);
@@ -512,8 +350,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
   it("stake: check state if stake success", async () => {
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(), async (v) => {
-        await prepareStakeParam(v);
+      fc.asyncProperty(randomStakeParam(env, contracts), async (v) => {
+        await prepareForStake(v);
 
         let apeStakedStorage = await contracts.stakeProxy.apeStaked();
         let bakcStakedStorage = await contracts.stakeProxy.bakcStaked();
@@ -621,7 +459,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
 
     const randomParams = () => {
-      return randomStakeParam().chain((v) => {
+      return randomStakeParam(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -634,7 +472,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, time] = v;
 
-        await prepareStakeParam(param);
+        await prepareForStake(param);
         await stake();
 
         const totalStaked = BigNumber.from(await apeStaked.coinAmount)
@@ -669,22 +507,21 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
 
     const randomParams = () => {
-      return randomStakeParam().chain((v) => {
+      return randomStakeParam(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
-        const rewardsPerHour = pools[v.poolId].currentTimeRange.rewardsPerHour;
         const time = Math.max(now + 100, startTimestamp);
         const randomTime = fc.integer({ min: time, max: endTimestamp });
         const randomTimes = fc.tuple(randomTime, randomTime).filter((t) => {
           return t[0] < t[1];
         });
-        return fc.tuple(fc.constant(v), fc.constant(rewardsPerHour), randomTimes);
+        return fc.tuple(fc.constant(v), randomTimes);
       });
     };
     await fc.assert(
       fc.asyncProperty(randomParams(), async (v) => {
-        const [param, rewardsPerHour, times] = v;
-        await prepareStakeParam(param);
+        const [param, times] = v;
+        await prepareForStake(param);
         await stake();
         const uniqueStakers = new Set<string>([
           await apeStaked.staker,
@@ -695,7 +532,6 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         await increaseTo(BigNumber.from(times[0]));
         await advanceBlock();
         await skipHourBlocks();
-        const hour = Math.floor((await latest()) / 3600);
         const totalRewards = await contracts.apeStaking.pendingRewards(
           poolId,
           contracts.stakeProxy.address,
@@ -728,8 +564,6 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         await advanceBlock();
         await skipHourBlocks();
 
-        const diffHour = Math.floor((await latest()) / 3600) - hour;
-
         const totalRewards2 = await contracts.apeStaking.pendingRewards(
           poolId,
           contracts.stakeProxy.address,
@@ -757,10 +591,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
           expect(stakerRewards.get(v)).to.eq(computed.get(v));
         });
 
-        expect(totalRewards2.sub(totalRewards)).to.closeTo(
-          rewardsPerHour.mul(diffHour),
-          rewardsPerHour.mul(diffHour).div(10000)
-        );
+        expect(totalRewards2).gte(totalRewards);
       }),
       { numRuns: 10 }
     );
@@ -770,7 +601,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
 
     const randomParams = () => {
-      return randomStakeParam().chain((v) => {
+      return randomStakeParam(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -786,7 +617,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, times] = v;
 
-        await prepareStakeParam(param);
+        await prepareForStake(param);
         await stake();
 
         await increaseTo(BigNumber.from(times[0]));
@@ -825,7 +656,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("withdrawable: amount will always be zero before unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam().chain((v) => {
+      return randomStakeParam(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -838,7 +669,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, time] = v;
 
-        await prepareStakeParam(param);
+        await prepareForStake(param);
         await stake();
 
         await increaseTo(BigNumber.from(time));
@@ -859,7 +690,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("withdrawable: amount will always be const after unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam().chain((v) => {
+      return randomStakeParam(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -874,7 +705,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, times] = v;
 
-        await prepareStakeParam(param);
+        await prepareForStake(param);
         await stake();
 
         await increaseTo(BigNumber.from(times[0]));
@@ -931,7 +762,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("claim: revert - not bakc owner", async () => {
-    await generateStakeParam(fc.oneof(randomApeBakcCoin(856), randomApeBakc(856)));
+    await prepareData(randomPairedStakeParam(env, contracts));
     await stake();
 
     await apeContract.transferFrom(env.admin.address, contracts.stakeProxy.address, apeStaked.tokenId);
@@ -951,7 +782,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("claim: claims before unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam().chain((v) => {
+      return randomStakeParam(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -965,7 +796,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     await fc.assert(
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, times] = v;
-        await prepareStakeParam(param);
+        await prepareForStake(param);
         await stake();
 
         const claim = async (time: number, staker: string, fee: number) => {
@@ -1014,7 +845,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("claim: claims over unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam().chain((v) => {
+      return randomStakeParam(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -1028,7 +859,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     await fc.assert(
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, times] = v;
-        await prepareStakeParam(param);
+        await prepareForStake(param);
         await stake();
 
         const claim = async (time: number, staker: string, fee: number) => {
@@ -1088,8 +919,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
   it("withdraw: after unStake", async () => {
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(), async (v) => {
-        await prepareStakeParam(v);
+      fc.asyncProperty(randomStakeParam(env, contracts), async (v) => {
+        await prepareForStake(v);
         await stake();
 
         await apeContract.transferFrom(env.admin.address, contracts.stakeProxy.address, apeStaked.tokenId);

@@ -87,6 +87,11 @@ export const BAKC: Params<string> = {
   [Network.mainnet]: "0xba30E5F9Bb24caa003E9f2f0497Ad287FDF95623",
 };
 
+export const BNFT_REGISTRY: Params<string> = {
+  [Network.goerli]: "0x37A76Db446bDB3EF1b73112a8D5E6868de06464f",
+  [Network.mainnet]: "",
+};
+
 export const BendAddressesProviders: Params<string> = {
   [Network.goerli]: "0x1cba0A3e18be7f210713c9AC9FE17955359cC99B",
   [Network.mainnet]: "0x24451f47caf13b24f4b5034e1df6c0e401ec0e46",

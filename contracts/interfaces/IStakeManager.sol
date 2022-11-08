@@ -30,12 +30,6 @@ interface IStakeManager {
 
     function setMatcher(address matcher) external;
 
-    function mintBoundApe(
-        address ape,
-        uint256 tokenId,
-        address to
-    ) external;
-
     function stake(
         DataTypes.ApeStaked memory apeStaked,
         DataTypes.BakcStaked memory bakcStaked,
@@ -46,7 +40,11 @@ interface IStakeManager {
 
     function claim(IStakeProxy proxy) external;
 
-    function lockFlashloan(address nftAsset, uint256 tokenId) external;
+    function lock(
+        address nftAsset,
+        uint256 tokenId,
+        address nftOwner
+    ) external;
 
     function borrowETH(
         uint256 amount,

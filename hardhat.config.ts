@@ -41,7 +41,7 @@ const config: HardhatUserConfig = {
       initialBaseFeePerGas: 0,
       forking: {
         url: NETWORKS_RPC_URL[Network.goerli],
-        blockNumber: 7854293,
+        blockNumber: 7914887,
       },
       allowUnlimitedContractSize: true,
     },

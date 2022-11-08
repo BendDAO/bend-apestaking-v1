@@ -182,12 +182,13 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         }
 
         if (iApe.ownerOf(apeStaked.tokenId) == apeStaked.staker) {
-            iApe.safeTransferFrom(apeStaked.staker, address(this), apeStaked.tokenId);
-            stakeManager.mintBoundApe(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
+            iApe.safeTransferFrom(apeStaked.staker, address(stakeManager), apeStaked.tokenId);
         } else {
             require(iBoundApe.ownerOf(apeStaked.tokenId) == apeStaked.staker, "Offer: not ape owner");
-            stakeManager.lockFlashloan(apeStaked.collection, apeStaked.tokenId);
         }
+
+        // lock ape in BNFT
+        stakeManager.lock(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
 
         if (apeStaked.coinAmount > 0) {
             iApeCoin.safeTransferFrom(apeStaked.staker, address(stakeManager), apeStaked.coinAmount);

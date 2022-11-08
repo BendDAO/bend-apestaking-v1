@@ -58,7 +58,7 @@ contract StakeManager is
     IERC20Upgradeable public apeCoin;
     IWETH public WETH;
 
-    IApeCoinStaking public apeCoinStaking;
+    IApeCoinStaking public apeStaking;
 
     address public proxyImplementation;
 
@@ -104,7 +104,7 @@ contract StakeManager is
         address boundMayc_,
         address apeCoin_,
         address WETH_,
-        address apeCoinStaking_,
+        address apeStaking_,
         address proxyImplementation_,
         address lendPoolAddressedProvider_
     ) external initializer {
@@ -118,7 +118,7 @@ contract StakeManager is
         bakc = IERC721Upgradeable(bakc_);
         apeCoin = IERC20Upgradeable(apeCoin_);
         WETH = IWETH(WETH_);
-        apeCoinStaking = IApeCoinStaking(apeCoinStaking_);
+        apeStaking = IApeCoinStaking(apeStaking_);
         proxyImplementation = proxyImplementation_;
         lendPoolAddressedProvider = ILendPoolAddressesProvider(lendPoolAddressedProvider_);
     }
@@ -208,22 +208,14 @@ contract StakeManager is
         DataTypes.BakcStaked memory bakcStaked,
         DataTypes.CoinStaked memory coinStaked
     ) external override onlyCaller(matcher) nonReentrant whenNotPaused {
+        IBNFT boundApe = _getBNFT(apeStaked.collection);
+        require(boundApe.ownerOf(apeStaked.tokenId) != address(0), "StakeManager: bound ape required");
+        require(boundApe.ownerOf(apeStaked.tokenId) == apeStaked.staker, "StakeManager: bound ape owner not staker");
         bytes memory param = abi.encode(apeStaked, bakcStaked, coinStaked);
         _flashCall(FlashCall.STAKE, apeStaked.collection, apeStaked.tokenId, param);
     }
 
-    function mintBoundApe(
-        address apeCollection,
-        uint256 tokenId,
-        address to
-    ) external override onlyCaller(matcher) whenNotPaused {
-        IBNFT boundApe = _getBNFT(apeCollection);
-        IERC721Upgradeable(apeCollection).approve(address(boundApe), tokenId);
-        boundApe.mint(to, tokenId);
-        boundApe.setFlashLoanLocking(tokenId, address(this), true);
-    }
-
-    function unstake(IStakeProxy proxy) external override onlyStaker(proxy) {
+    function unstake(IStakeProxy proxy) external override onlyStaker(proxy) nonReentrant {
         if (!proxy.unStaked()) {
             bytes memory param = abi.encode(proxy, _msgSender());
             _flashCall(FlashCall.UNSTAKE, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
@@ -232,7 +224,7 @@ contract StakeManager is
         }
     }
 
-    function claim(IStakeProxy proxy) external override onlyStaker(proxy) {
+    function claim(IStakeProxy proxy) external override onlyStaker(proxy) nonReentrant {
         if (!proxy.unStaked()) {
             bytes memory param = abi.encode(proxy, _msgSender());
             _flashCall(FlashCall.CLAIM, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
@@ -246,7 +238,7 @@ contract StakeManager is
         address apeCollection,
         uint256 tokenId,
         bytes memory param
-    ) internal nonReentrant whenNotPaused {
+    ) internal whenNotPaused {
         IBNFT boundApe = _getBNFT(apeCollection);
         uint256[] memory ids = new uint256[](1);
         ids[0] = tokenId;
@@ -274,7 +266,7 @@ contract StakeManager is
             address(mayc),
             address(bakc),
             address(apeCoin),
-            address(apeCoinStaking)
+            address(apeStaking)
         );
 
         // transfer nft and ape coin to proxy
@@ -304,22 +296,35 @@ contract StakeManager is
         }
     }
 
-    function lockFlashloan(address nftAsset, uint256 tokenId) external onlyCaller(matcher) whenNotPaused {
-        require(nftAsset == address(bayc) || nftAsset == address(mayc), "StakeManager: not ape collection");
+    function lock(
+        address nftAsset,
+        uint256 tokenId,
+        address nftOwner
+    ) external override onlyCaller(matcher) whenNotPaused nonReentrant {
+        IERC721Upgradeable apeNft = IERC721Upgradeable(nftAsset);
+        IBNFT boundApe = _getBNFT(nftAsset);
         ILendPoolLoan poolLoan = lendPoolAddressedProvider.getLendPoolLoan();
-        address[] memory interceptors = poolLoan.getLoanRepaidInterceptors(nftAsset, tokenId);
-        for (uint256 i = 0; i < interceptors.length; i++) {
-            if (interceptors[i] == address(this)) {
-                return;
+        // if ape locked in lend pool BNFT, lock flashloan and add interceptor
+        if (apeNft.ownerOf(tokenId) == address(boundApe) && boundApe.minterOf(tokenId) == address(poolLoan)) {
+            address[] memory interceptors = poolLoan.getLoanRepaidInterceptors(nftAsset, tokenId);
+            for (uint256 i = 0; i < interceptors.length; i++) {
+                if (interceptors[i] == address(this)) {
+                    return;
+                }
             }
+            poolLoan.setFlashLoanLocking(nftAsset, tokenId, true);
+            poolLoan.addLoanRepaidInterceptor(nftAsset, tokenId);
+            return;
         }
-        poolLoan.setFlashLoanLocking(nftAsset, tokenId, true);
-        poolLoan.addLoanRepaidInterceptor(nftAsset, tokenId);
+        // else mint BNFT and lock flashloan
+        apeNft.approve(address(boundApe), tokenId);
+        boundApe.mint(nftOwner, tokenId);
+        boundApe.setFlashLoanLocking(tokenId, address(this), true);
     }
 
     function _unStake(IStakeProxy proxy, address staker) internal {
         // unstake from proxy
-        _unStakeProxy(proxy, staker);
+        _unStakeFromProxy(proxy, staker);
         // withdraw ape coin for staker
         uint256 amount = proxy.withdraw(staker);
         if (amount > 0) {
@@ -338,7 +343,7 @@ contract StakeManager is
         _withdrawApe(proxy, staker);
     }
 
-    function _unStakeProxy(IStakeProxy proxy, address staker) internal {
+    function _unStakeFromProxy(IStakeProxy proxy, address staker) internal {
         if (proxy.unStaked()) {
             return;
         }
@@ -424,7 +429,7 @@ contract StakeManager is
         uint256 amount,
         address nftAsset,
         uint256 nftTokenId
-    ) external whenNotPaused {
+    ) external whenNotPaused nonReentrant {
         IBNFT boundApe = _getBNFT(nftAsset);
         require(boundApe.ownerOf(nftTokenId) == _msgSender(), "StakeManager: not bnft owner");
         require(boundApe.minterOf(nftTokenId) == address(this), "StakeManager: not bnft minter");
@@ -433,6 +438,7 @@ contract StakeManager is
         ILendPool pool = lendPoolAddressedProvider.getLendPool();
         ILendPoolLoan poolLoan = lendPoolAddressedProvider.getLendPoolLoan();
         poolLoan.addLoanRepaidInterceptor(nftAsset, nftTokenId);
+        IERC721Upgradeable(nftAsset).approve(address(pool), nftTokenId);
         pool.borrow(address(WETH), amount, nftAsset, nftTokenId, _msgSender(), 0);
         WETH.withdraw(amount);
         AddressUpgradeable.sendValue(payable(_msgSender()), amount);
@@ -456,7 +462,7 @@ contract StakeManager is
             IApeCoinStaking.PoolUI memory baycPoolUI,
             IApeCoinStaking.PoolUI memory maycPoolUI,
             IApeCoinStaking.PoolUI memory bakcPoolUI
-        ) = apeCoinStaking.getPoolsUI();
+        ) = apeStaking.getPoolsUI();
 
         if (poolId == DataTypes.BAYC_POOL_ID && poolId == baycPoolUI.poolId) {
             return baycPoolUI.currentTimeRange;

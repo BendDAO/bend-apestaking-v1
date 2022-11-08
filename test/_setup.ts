@@ -12,6 +12,9 @@ import {
   IStakeProxy,
   IStakeManager,
   IStakeMatcher,
+  ILendPool,
+  IBNFTRegistry,
+  ILendPoolLoan,
 } from "../typechain-types";
 import {
   APE_COIN,
@@ -22,14 +25,14 @@ import {
   bBAYC,
   BendAddressesProviders,
   bMAYC,
+  BNFT_REGISTRY,
   getParams,
   MAYC,
   WETH,
 } from "../tasks/config";
-import { waitForTx } from "../tasks/utils/helpers";
 import { constants, Contract } from "ethers";
 
-import { impersonateAccount } from "@nomicfoundation/hardhat-network-helpers";
+import { impersonateAccount, setBalance } from "@nomicfoundation/hardhat-network-helpers";
 
 export interface Env {
   initialized: boolean;
@@ -51,9 +54,12 @@ export interface Contracts {
   mayc: MintableERC721;
   bMayc: IERC721;
   bakc: MintableERC721;
+  bnftRegistry: IBNFTRegistry;
 
   // bend protocol
   bendAddressesProvider: ILendPoolAddressesProvider;
+  lendPool: ILendPool;
+  lendPoolLoan: ILendPoolLoan;
 
   // ape staking
   apeStaking: IApeCoinStaking;
@@ -74,26 +80,34 @@ export async function setupEnv(env: Env, contracts: Contracts): Promise<void> {
   // init eth
   for (const user of env.accounts) {
     // Each user gets 100 WETH
-    waitForTx(await contracts.weth.connect(user).deposit({ value: parseEther("100") }));
+    await contracts.weth.connect(user).deposit({ value: parseEther("100") });
     // Each user gets 100K ape coin
-    waitForTx(
-      await contracts.apeCoin
-        .connect(await ethers.getSigner(apeCoinHolder))
-        .transfer(user.address, parseEther("100000"))
-    );
+
+    await contracts.apeCoin.connect(await ethers.getSigner(apeCoinHolder)).transfer(user.address, parseEther("100000"));
   }
 
-  waitForTx(
-    await contracts.apeCoin
-      .connect(await ethers.getSigner(apeCoinHolder))
-      .transfer(contracts.apeStaking.address, parseEther("100000000"))
-  );
+  await contracts.apeCoin
+    .connect(await ethers.getSigner(apeCoinHolder))
+    .transfer(contracts.apeStaking.address, parseEther("100000000"));
 
   // add reserve balance for bend
-  const lendPool = await ethers.getContractAt("ILendPool", await contracts.bendAddressesProvider.getLendPool());
-  waitForTx(await contracts.weth.connect(env.admin).approve(lendPool.address, constants.MaxUint256));
+  await contracts.weth.connect(env.admin).approve(contracts.lendPool.address, constants.MaxUint256);
 
-  waitForTx(await lendPool.connect(env.admin).deposit(contracts.weth.address, parseEther("100"), env.admin.address, 0));
+  await contracts.lendPool.connect(env.admin).deposit(contracts.weth.address, parseEther("100"), env.admin.address, 0);
+
+  const configurator = await contracts.bendAddressesProvider.getLendPoolConfigurator();
+
+  await impersonateAccount(configurator);
+
+  await setBalance(configurator, parseEther("1"));
+
+  // approve bnft for staker manager
+  await contracts.lendPoolLoan
+    .connect(await ethers.getSigner(configurator))
+    .approveFlashLoanLocker(contracts.stakeManager.address, true);
+  await contracts.lendPoolLoan
+    .connect(await ethers.getSigner(configurator))
+    .approveLoanRepaidInterceptor(contracts.stakeManager.address, true);
 }
 
 export async function setupContracts(): Promise<Contracts> {
@@ -111,6 +125,8 @@ export async function setupContracts(): Promise<Contracts> {
 
   const bakc = await ethers.getContractAt("MintableERC721", getParams(BAKC, networkName));
 
+  const bnftRegistry = await ethers.getContractAt("IBNFTRegistry", getParams(BNFT_REGISTRY, networkName));
+
   const apeCoin = await ethers.getContractAt("IERC20", getParams(APE_COIN, networkName));
 
   // bend protocol
@@ -118,6 +134,9 @@ export async function setupContracts(): Promise<Contracts> {
     "ILendPoolAddressesProvider",
     getParams(BendAddressesProviders, networkName)
   );
+
+  const lendPool = await ethers.getContractAt("ILendPool", await bendAddressesProvider.getLendPool());
+  const lendPoolLoan = await ethers.getContractAt("ILendPoolLoan", await bendAddressesProvider.getLendPoolLoan());
 
   const apeStaking = await ethers.getContractAt("IApeCoinStaking", getParams(APE_STAKING, networkName));
 
@@ -158,7 +177,10 @@ export async function setupContracts(): Promise<Contracts> {
     mayc,
     bMayc,
     bakc,
+    bnftRegistry,
     bendAddressesProvider,
+    lendPool,
+    lendPoolLoan,
     apeStaking,
     stakeProxy,
     stakeManager,

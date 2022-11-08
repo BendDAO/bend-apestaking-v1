@@ -293,7 +293,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         address token,
         address to,
         uint256 amount
-    ) external override onlyOwner {
+    ) external override onlyOwner nonReentrant {
         IERC20(token).safeTransfer(to, amount);
     }
 
@@ -301,7 +301,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         address token,
         address to,
         uint256 tokenId
-    ) external override onlyOwner {
+    ) external override onlyOwner nonReentrant {
         IERC721(token).safeTransferFrom(address(this), to, tokenId);
     }
 

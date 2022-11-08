@@ -8,6 +8,10 @@ interface ILendPoolLoan {
         bool locked
     ) external;
 
+    function approveFlashLoanLocker(address locker, bool approved) external;
+
+    function approveLoanRepaidInterceptor(address interceptor, bool approved) external;
+
     function addLoanRepaidInterceptor(address nftAsset, uint256 tokenId) external;
 
     function deleteLoanRepaidInterceptor(address nftAsset, uint256 tokenId) external;
