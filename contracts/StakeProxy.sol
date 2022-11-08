@@ -175,13 +175,29 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         DataTypes.CoinStaked memory coinStaked_
     ) external override onlyOwner nonReentrant {
         require(
+            apeStaked_.collection == address(bayc) || apeStaked_.collection == address(mayc),
+            "StakeProxy: invalid ape collection"
+        );
+        require(
             IERC721(apeStaked_.collection).ownerOf(apeStaked_.tokenId) == address(this),
             "StakeProxy: not ape owner"
         );
+        if (!bakcStaked_.isNull()) {
+            require(bakc.ownerOf(bakcStaked_.tokenId) == address(this), "StakeProxy: not bakc owner");
 
-        _setPoolType(apeStaked_, bakcStaked_);
+            if (apeStaked_.collection == address(bayc)) {
+                poolType = PoolType.PAIRED_BAYC;
+            } else {
+                poolType = PoolType.PAIRED_MAYC;
+            }
+        } else {
+            if (apeStaked_.collection == address(bayc)) {
+                poolType = PoolType.SINGLE_BAYC;
+            } else {
+                poolType = PoolType.SINGLE_MAYC;
+            }
+        }
 
-        // check nft staking state
         uint256 poolId = _getPoolId();
 
         // save storage
@@ -200,7 +216,6 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
                 "StakeProxy: bakc already staked"
             );
 
-            require(bakc.ownerOf(bakcStaked_.tokenId) == address(this), "StakeProxy: not bakc owner");
             IApeCoinStaking.PairNftWithAmount[] memory nfts = new IApeCoinStaking.PairNftWithAmount[](1);
             nfts[0] = IApeCoinStaking.PairNftWithAmount({
                 mainTokenId: apeStaked_.tokenId,
@@ -210,7 +225,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
             IApeCoinStaking.PairNftWithAmount[] memory emptyNfts;
             if (poolType == PoolType.PAIRED_BAYC) {
                 apeStaking.depositBAKC(nfts, emptyNfts);
-            } else if (_apeStaked.collection == address(mayc)) {
+            } else {
                 apeStaking.depositBAKC(emptyNfts, nfts);
             }
         } else {
@@ -224,7 +239,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
             nfts[0] = IApeCoinStaking.SingleNft({tokenId: apeStaked_.tokenId, amount: coinAmount});
             if (poolType == PoolType.SINGLE_BAYC) {
                 apeStaking.depositBAYC(nfts);
-            } else if (poolType == PoolType.SINGLE_MAYC) {
+            } else {
                 apeStaking.depositMAYC(nfts);
             }
         }
@@ -232,28 +247,6 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
         // transfer nft back to owner
         IERC721(apeStaked_.collection).safeTransferFrom(address(this), owner(), apeStaked_.tokenId);
-    }
-
-    function _setPoolType(DataTypes.ApeStaked memory apeStaked_, DataTypes.BakcStaked memory bakcStaked_) internal {
-        require(
-            apeStaked_.collection == address(bayc) || apeStaked_.collection == address(mayc),
-            "StakeProxy: invalid ape collection"
-        );
-        if (!bakcStaked_.isNull()) {
-            require(bakc.ownerOf(bakcStaked_.tokenId) == address(this), "StakeProxy: not bakc owner");
-
-            if (apeStaked_.collection == address(bayc)) {
-                poolType = PoolType.PAIRED_BAYC;
-            } else if (apeStaked_.collection == address(mayc)) {
-                poolType = PoolType.PAIRED_MAYC;
-            }
-        } else {
-            if (apeStaked_.collection == address(bayc)) {
-                poolType = PoolType.SINGLE_BAYC;
-            } else if (apeStaked_.collection == address(mayc)) {
-                poolType = PoolType.SINGLE_MAYC;
-            }
-        }
     }
 
     function claim(
@@ -283,15 +276,16 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         require(unStaked, "StakeProxy: can't withdraw");
 
         amount = pendingWithdraw[staker];
-        if (amount > 0) {
-            apeCoin.safeTransfer(staker, amount);
-        }
+        apeCoin.safeTransfer(staker, amount);
         pendingWithdraw[staker] = 0;
 
-        if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
-            if ((!_bakcStaked.isNull()) && staker == _bakcStaked.staker) {
-                bakc.safeTransferFrom(address(this), _bakcStaked.staker, _bakcStaked.tokenId);
-            }
+        if (
+            (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) && // must be paired type
+            (!_bakcStaked.isNull()) && // must be paired type
+            staker == _bakcStaked.staker && // staker must be bakc staker
+            bakc.ownerOf(_bakcStaked.tokenId) == address(this) // bakc must not withdrawn
+        ) {
+            bakc.safeTransferFrom(address(this), _bakcStaked.staker, _bakcStaked.tokenId);
         }
     }
 

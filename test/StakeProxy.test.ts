@@ -184,6 +184,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         .mint(await stakedParam.bakcStaked.tokenId);
     }
     apeContract = await getContract("MintableERC721", await stakedParam.apeStaked.collection);
+
     await apeContract
       .connect(await ethers.getSigner(await stakedParam.apeStaked.staker))
       .mint(await stakedParam.apeStaked.tokenId);
@@ -222,36 +223,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     );
   };
 
-  before(async () => {
-    await contracts.stakeProxy
-      .connect(env.admin)
-      .initialize(
-        env.admin.address,
-        contracts.bayc.address,
-        contracts.mayc.address,
-        contracts.bakc.address,
-        contracts.apeCoin.address,
-        contracts.apeStaking.address
-      );
-
-    expect(await contracts.stakeProxy.bayc()).to.eq(contracts.bayc.address);
-    expect(await contracts.stakeProxy.mayc()).to.eq(contracts.mayc.address);
-    expect(await contracts.stakeProxy.bakc()).to.eq(contracts.bakc.address);
-    expect(await contracts.stakeProxy.apeCoin()).to.eq(contracts.apeCoin.address);
-    expect(await contracts.stakeProxy.apeStaking()).to.eq(contracts.apeStaking.address);
-    expect(await (await getContract<Ownable>("Ownable", contracts.stakeProxy.address)).owner()).to.eq(
-      env.admin.address
-    );
-    pools = await contracts.apeStaking.getPoolsUI();
-    lastRevert = "init";
-    await snapshots.capture("init");
-  });
-
-  afterEach(async () => {
-    await snapshots.revert(lastRevert);
-  });
-
-  const proxyStake = async () => {
+  const stake = async () => {
     await apeContract
       .connect(await ethers.getSigner(await apeStaked.staker))
       .transferFrom(apeStaked.staker, contracts.stakeProxy.address, apeStaked.tokenId);
@@ -334,8 +306,107 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     }
   };
 
-  it("stake: revert - caller is not the owner", async () => {
+  before(async () => {
+    await contracts.stakeProxy
+      .connect(env.admin)
+      .initialize(
+        env.admin.address,
+        contracts.bayc.address,
+        contracts.mayc.address,
+        contracts.bakc.address,
+        contracts.apeCoin.address,
+        contracts.apeStaking.address
+      );
+
+    expect(await contracts.stakeProxy.bayc()).to.eq(contracts.bayc.address);
+    expect(await contracts.stakeProxy.mayc()).to.eq(contracts.mayc.address);
+    expect(await contracts.stakeProxy.bakc()).to.eq(contracts.bakc.address);
+    expect(await contracts.stakeProxy.apeCoin()).to.eq(contracts.apeCoin.address);
+    expect(await contracts.stakeProxy.apeStaking()).to.eq(contracts.apeStaking.address);
+    expect(await (await getContract<Ownable>("Ownable", contracts.stakeProxy.address)).owner()).to.eq(
+      env.admin.address
+    );
+    await expect(
+      contracts.stakeProxy.initialize(
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero
+      )
+    ).to.rejectedWith("Initializable: contract is already initialized");
+    pools = await contracts.apeStaking.getPoolsUI();
+    lastRevert = "init";
+    await snapshots.capture("init");
+  });
+
+  afterEach(async () => {
+    await snapshots.revert(lastRevert);
+  });
+
+  it("Revert - Receive ETH not allowed", async () => {
+    await expect(env.admin.sendTransaction({ to: contracts.stakeProxy.address, value: makeBN18(1) })).to.rejectedWith(
+      "Receive ETH not allowed"
+    );
+  });
+
+  it("onlyOwner: revertions work as expected", async () => {
     await generateStakeParam(randomStakeParam());
+    await expect(
+      contracts.stakeProxy.connect(env.accounts[1]).stake(apeStaked, bakcStaked, coinStaked)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+    await expect(contracts.stakeProxy.connect(env.accounts[1]).unStake()).to.be.revertedWith(
+      "Ownable: caller is not the owner"
+    );
+    await expect(
+      contracts.stakeProxy.connect(env.accounts[1]).claim(constants.AddressZero, constants.Zero, constants.AddressZero)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+    await expect(contracts.stakeProxy.connect(env.accounts[1]).withdraw(constants.AddressZero)).to.be.revertedWith(
+      "Ownable: caller is not the owner"
+    );
+    await expect(
+      contracts.stakeProxy
+        .connect(env.accounts[1])
+        .withdrawERC20Emergency(constants.AddressZero, constants.AddressZero, constants.Zero)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+
+    await expect(
+      contracts.stakeProxy
+        .connect(env.accounts[1])
+        .withdrawERC721Emergency(constants.AddressZero, constants.AddressZero, constants.Zero)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+  });
+
+  it("onlyStaker: revertions work as expected", async () => {
+    await stake();
+
+    await expect(
+      contracts.stakeProxy.claim(env.admin.address, constants.Zero, constants.AddressZero)
+    ).to.be.revertedWith("StakeProxy: not valid staker");
+    await expect(contracts.stakeProxy.withdraw(env.admin.address)).to.be.revertedWith("StakeProxy: not valid staker");
+  });
+
+  it("withdrawERC20Emergency", async () => {
+    await contracts.apeCoin.transfer(contracts.stakeProxy.address, makeBN18(100));
+    await expect(
+      contracts.stakeProxy.withdrawERC20Emergency(contracts.apeCoin.address, env.admin.address, makeBN18(100))
+    ).to.changeTokenBalances(
+      contracts.apeCoin,
+      [env.admin.address, contracts.stakeProxy.address],
+      [makeBN18(100), constants.Zero.sub(makeBN18(100))]
+    );
+  });
+
+  it("withdrawERC721Emergency", async () => {
+    await contracts.bayc.mint(200);
+    await contracts.bayc.transferFrom(env.admin.address, contracts.stakeProxy.address, 200);
+    await expect(contracts.stakeProxy.withdrawERC721Emergency(contracts.bayc.address, env.admin.address, 200)).to.not
+      .reverted;
+    expect(await contracts.bayc.ownerOf(200)).to.eq(env.admin.address);
+  });
+
+  it("stake: revert - caller is not the owner", async () => {
     await expect(
       contracts.stakeProxy.connect(env.accounts[1]).stake(apeStaked, bakcStaked, coinStaked)
     ).to.be.revertedWith("Ownable: caller is not the owner");
@@ -344,6 +415,14 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("stake: revert - not ape owner", async () => {
     await expect(contracts.stakeProxy.stake(apeStaked, bakcStaked, coinStaked)).to.be.revertedWith(
       "StakeProxy: not ape owner"
+    );
+  });
+
+  it("stake: revert - invalid ape collection", async () => {
+    const invalidApeStaked = { ...apeStaked };
+    invalidApeStaked.collection = constants.AddressZero;
+    await expect(contracts.stakeProxy.stake(invalidApeStaked, bakcStaked, coinStaked)).to.be.revertedWith(
+      "StakeProxy: invalid ape collection"
     );
   });
 
@@ -460,7 +539,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         expect(coinStakedStorage.coinShare).to.eq(constants.Zero);
         expect(coinStakedStorage.coinAmount).to.eq(constants.Zero);
 
-        await proxyStake();
+        await stake();
 
         // check nft ownership
         expect(await apeContract.ownerOf(apeStaked.tokenId)).to.be.eq(env.admin.address);
@@ -556,7 +635,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         const [param, time] = v;
 
         await prepareStakeParam(param);
-        await proxyStake();
+        await stake();
 
         const totalStaked = BigNumber.from(await apeStaked.coinAmount)
           .add(await bakcStaked.coinAmount)
@@ -606,7 +685,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, rewardsPerHour, times] = v;
         await prepareStakeParam(param);
-        await proxyStake();
+        await stake();
         const uniqueStakers = new Set<string>([
           await apeStaked.staker,
           await bakcStaked.staker,
@@ -708,7 +787,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         const [param, times] = v;
 
         await prepareStakeParam(param);
-        await proxyStake();
+        await stake();
 
         await increaseTo(BigNumber.from(times[0]));
         await advanceBlock();
@@ -760,7 +839,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         const [param, time] = v;
 
         await prepareStakeParam(param);
-        await proxyStake();
+        await stake();
 
         await increaseTo(BigNumber.from(time));
         await advanceBlock();
@@ -796,7 +875,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         const [param, times] = v;
 
         await prepareStakeParam(param);
-        await proxyStake();
+        await stake();
 
         await increaseTo(BigNumber.from(times[0]));
         await advanceBlock();
@@ -853,7 +932,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
   it("claim: revert - not bakc owner", async () => {
     await generateStakeParam(fc.oneof(randomApeBakcCoin(856), randomApeBakc(856)));
-    await proxyStake();
+    await stake();
 
     await apeContract.transferFrom(env.admin.address, contracts.stakeProxy.address, apeStaked.tokenId);
 
@@ -887,7 +966,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, times] = v;
         await prepareStakeParam(param);
-        await proxyStake();
+        await stake();
 
         const claim = async (time: number, staker: string, fee: number) => {
           await increaseTo(BigNumber.from(time));
@@ -950,7 +1029,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       fc.asyncProperty(randomParams(), async (v) => {
         const [param, times] = v;
         await prepareStakeParam(param);
-        await proxyStake();
+        await stake();
 
         const claim = async (time: number, staker: string, fee: number) => {
           await increaseTo(BigNumber.from(time));
@@ -1011,7 +1090,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     await fc.assert(
       fc.asyncProperty(randomStakeParam(), async (v) => {
         await prepareStakeParam(v);
-        await proxyStake();
+        await stake();
 
         await apeContract.transferFrom(env.admin.address, contracts.stakeProxy.address, apeStaked.tokenId);
         await contracts.stakeProxy.unStake();
