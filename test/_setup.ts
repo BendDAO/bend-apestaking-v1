@@ -105,6 +105,7 @@ export async function setupEnv(env: Env, contracts: Contracts): Promise<void> {
   await contracts.lendPoolLoan
     .connect(await ethers.getSigner(configurator))
     .approveFlashLoanLocker(contracts.stakeManager.address, true);
+
   await contracts.lendPoolLoan
     .connect(await ethers.getSigner(configurator))
     .approveLoanRepaidInterceptor(contracts.stakeManager.address, true);

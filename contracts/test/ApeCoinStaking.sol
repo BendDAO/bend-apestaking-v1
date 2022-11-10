@@ -1079,6 +1079,7 @@ contract ApeCoinStaking is Ownable {
             uint256 amount = _nfts[i].amount;
             address mainTokenOwner = nftContracts[mainTypePoolId].ownerOf(mainTokenId);
             address bakcOwner = nftContracts[BAKC_POOL_ID].ownerOf(bakcTokenId);
+
             PairingStatus memory mainToSecond = mainToBakc[mainTypePoolId][mainTokenId];
             PairingStatus memory secondToMain = bakcToMain[bakcTokenId][mainTypePoolId];
 

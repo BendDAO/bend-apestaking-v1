@@ -52,6 +52,8 @@ interface IStakeProxy {
 
     function withdrawable(address staker) external view returns (uint256);
 
+    function totalStaked() external view returns (uint256);
+
     function unStake() external;
 
     function stake(

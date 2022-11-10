@@ -3,6 +3,7 @@ import { formatBytes32String } from "ethers/lib/utils";
 import { ethers } from "hardhat";
 import { Contracts, Env } from "./_setup";
 import { BigNumber, constants, Contract } from "ethers";
+import { advanceBlock, latest } from "./helpers/block-traveller";
 
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
@@ -16,6 +17,14 @@ export const getContract = async <ContractType extends Contract>(
 ): Promise<ContractType> => (await ethers.getContractAt(contractName, address)) as ContractType;
 
 export const emptyBytes32 = formatBytes32String("");
+
+export const skipHourBlocks = async () => {
+  const currentTime = await latest();
+  // skip hour blocks
+  if (currentTime % 3600 === 3599) {
+    await advanceBlock();
+  }
+};
 
 export const randomApeBakcCoin = (env: Env, contracts: Contracts, maxCap: number) => {
   const shares = fc

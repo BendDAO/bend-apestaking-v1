@@ -16,7 +16,9 @@ interface IStakeManager {
 
     function claimable(IStakeProxy proxy, address staker) external view returns (uint256);
 
-    function withdrawable(IStakeProxy proxy, address staker) external view returns (uint256);
+    function totalStaked(IStakeProxy proxy, address staker) external view returns (uint256);
+
+    function unStaked(IStakeProxy proxy, address staker) external view returns (bool);
 
     function feeRecipient() external view returns (address);
 
@@ -36,15 +38,9 @@ interface IStakeManager {
         DataTypes.CoinStaked memory coinStaked
     ) external;
 
-    function unstake(IStakeProxy proxy) external;
+    function unStake(IStakeProxy proxy) external;
 
     function claim(IStakeProxy proxy) external;
-
-    function lock(
-        address nftAsset,
-        uint256 tokenId,
-        address nftOwner
-    ) external;
 
     function borrowETH(
         uint256 amount,

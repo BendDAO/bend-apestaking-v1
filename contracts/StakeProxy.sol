@@ -125,7 +125,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
             IERC721(_apeStaked.collection).ownerOf(_apeStaked.tokenId) == address(this),
             "StakeProxy: not ape owner"
         );
-        uint256 coinAmount = _totalStakedCoinAmount();
+        uint256 coinAmount = _totalStaked();
         uint256 preBalance = apeCoin.balanceOf(address(this));
 
         if (poolType == PoolType.SINGLE_BAYC || poolType == PoolType.SINGLE_MAYC) {
@@ -205,12 +205,12 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         _bakcStaked = bakcStaked_;
         _coinStaked = coinStaked_;
 
-        uint256 coinAmount = _totalStakedCoinAmount();
+        uint256 coinAmount = _totalStaked();
 
         // do the ape staking
         apeCoin.safeApprove(address(apeStaking), coinAmount);
         if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
-            // check bakc staking state
+            // block partially stake from official contract
             require(
                 apeStaking.nftPosition(poolId, bakcStaked_.tokenId).stakedAmount == 0,
                 "StakeProxy: bakc already staked"
@@ -229,7 +229,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
                 apeStaking.depositBAKC(emptyNfts, nfts);
             }
         } else {
-            // check ape staking state
+            // block partially stake from official contract
             require(
                 apeStaking.nftPosition(poolId, apeStaked_.tokenId).stakedAmount == 0,
                 "StakeProxy: ape already staked"
@@ -322,7 +322,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         )
     {
         if (rewardsAmount > 0) {
-            uint256 maxCap = _totalStakedCoinAmount();
+            uint256 maxCap = _totalStaked();
             apeRewards = rewardsAmount.percentMul(_apeStaked.apeShare);
             bakcRewards = rewardsAmount.percentMul(_bakcStaked.bakcShare);
             coinRewards = rewardsAmount - apeRewards - bakcRewards;
@@ -377,7 +377,11 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         }
     }
 
-    function _totalStakedCoinAmount() internal view returns (uint256 coinAmount) {
+    function totalStaked() external view returns (uint256 coinAmount) {
+        return _totalStaked();
+    }
+
+    function _totalStaked() internal view returns (uint256 coinAmount) {
         coinAmount = _apeStaked.coinAmount;
         if (!_bakcStaked.isNull()) {
             coinAmount += _bakcStaked.coinAmount;

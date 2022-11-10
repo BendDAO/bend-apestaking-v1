@@ -16,6 +16,7 @@ import {
   randomPairedStakeParam,
   randomSingleStakeParam,
   randomStakeParam,
+  skipHourBlocks,
 } from "./utils";
 
 /* eslint-disable no-unused-expressions */
@@ -30,26 +31,23 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   let poolTokenId: number;
   let pools: any;
 
-  const prepareForStake = async (stakedParam: any) => {
+  const prepareForStake = async (param: any) => {
     await snapshots.revert("init");
-    poolTokenId = stakedParam.apeStaked.tokenId;
-    poolId = stakedParam.poolId;
+    poolTokenId = param.apeStaked.tokenId;
+    poolId = param.poolId;
     if (poolId === 3) {
-      poolTokenId = stakedParam.bakcStaked.tokenId;
+      poolTokenId = param.bakcStaked.tokenId;
       await contracts.bakc
-        .connect(await ethers.getSigner(await stakedParam.bakcStaked.staker))
-        .mint(await stakedParam.bakcStaked.tokenId);
+        .connect(await ethers.getSigner(await param.bakcStaked.staker))
+        .mint(await param.bakcStaked.tokenId);
     }
-    apeContract = await getContract("MintableERC721", await stakedParam.apeStaked.collection);
+    apeContract = await getContract("MintableERC721", await param.apeStaked.collection);
 
-    await apeContract
-      .connect(await ethers.getSigner(await stakedParam.apeStaked.staker))
-      .mint(await stakedParam.apeStaked.tokenId);
+    await apeContract.connect(await ethers.getSigner(await param.apeStaked.staker)).mint(await param.apeStaked.tokenId);
 
-    // console.log(stakedParam);
-    apeStaked = stakedParam.apeStaked;
-    bakcStaked = stakedParam.bakcStaked;
-    coinStaked = stakedParam.coinStaked;
+    apeStaked = param.apeStaked;
+    bakcStaked = param.bakcStaked;
+    coinStaked = param.coinStaked;
     lastRevert = "setStakeParam";
     await snapshots.capture("setStakeParam");
   };
@@ -135,15 +133,6 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     appendRewards(await coinStaked.staker, coinRewards);
 
     return stakerRewards;
-  };
-
-  const skipHourBlocks = async () => {
-    const currentTime = await latest();
-    // skip hour blocks
-    if (currentTime % 3600 === 3599 || currentTime % 3600 === 0) {
-      await advanceBlock();
-      await advanceBlock();
-    }
   };
 
   before(async () => {
@@ -436,6 +425,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         expect(await contracts.stakeProxy.claimable(apeStaked.staker, constants.Zero)).to.eq(constants.Zero);
         expect(await contracts.stakeProxy.claimable(bakcStaked.staker, constants.Zero)).to.eq(constants.Zero);
         expect(await contracts.stakeProxy.claimable(coinStaked.staker, constants.Zero)).to.eq(constants.Zero);
+
+        expect(await contracts.stakeProxy.totalStaked()).eq(totalStaked);
 
         expect(await contracts.stakeProxy.unStaked()).to.eq(false);
       }),

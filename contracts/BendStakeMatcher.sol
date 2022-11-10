@@ -186,10 +186,6 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         } else {
             require(iBoundApe.ownerOf(apeStaked.tokenId) == apeStaked.staker, "Offer: not ape owner");
         }
-
-        // lock ape in BNFT
-        stakeManager.lock(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
-
         if (apeStaked.coinAmount > 0) {
             iApeCoin.safeTransferFrom(apeStaked.staker, address(stakeManager), apeStaked.coinAmount);
         }
