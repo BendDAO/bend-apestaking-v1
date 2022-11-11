@@ -9,6 +9,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@typechain/hardhat";
 import "hardhat-abi-exporter";
 import "hardhat-gas-reporter";
+import "hardhat-contract-sizer";
 import "solidity-coverage";
 import "dotenv/config";
 
@@ -97,6 +98,11 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: REPORT_GAS,
     excludeContracts: ["test*", "@openzeppelin*"],
+  },
+  contractSizer: {
+    alphaSort: true,
+    runOnCompile: false,
+    disambiguatePaths: false,
   },
 };
 

@@ -28,6 +28,7 @@
   },
   "scripts": {
     "typechain": "TS_NODE_TRANSPILE_ONLY=true hardhat typechain",
+    "size": "npm run compile && hardhat size-contracts",
     "clean": "hardhat clean",
     "compile": "TS_NODE_TRANSPILE_ONLY=true hardhat compile",
     "compile:force": "hardhat compile --force",
@@ -90,6 +91,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "4.7.3",
-    "@openzeppelin/contracts-upgradeable": "4.7.3"
+    "@openzeppelin/contracts-upgradeable": "4.7.3",
+    "hardhat-contract-sizer": "^2.6.1"
   }
 }
