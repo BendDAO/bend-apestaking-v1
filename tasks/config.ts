@@ -96,3 +96,8 @@ export const BendAddressesProviders: Params<string> = {
   [Network.goerli]: "0x1cba0A3e18be7f210713c9AC9FE17955359cC99B",
   [Network.mainnet]: "0x24451f47caf13b24f4b5034e1df6c0e401ec0e46",
 };
+
+export const BendDebtETH: Params<string> = {
+  [Network.goerli]: "0x9aB83A4886dCE3C0c1011f9D248249DD3eF64784",
+  [Network.mainnet]: "",
+};

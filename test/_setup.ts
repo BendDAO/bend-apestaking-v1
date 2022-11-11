@@ -15,6 +15,7 @@ import {
   ILendPool,
   IBNFTRegistry,
   ILendPoolLoan,
+  IDebtToken,
 } from "../typechain-types";
 import {
   APE_COIN,
@@ -24,6 +25,7 @@ import {
   BAYC,
   bBAYC,
   BendAddressesProviders,
+  BendDebtETH,
   bMAYC,
   BNFT_REGISTRY,
   getParams,
@@ -60,6 +62,7 @@ export interface Contracts {
   bendAddressesProvider: ILendPoolAddressesProvider;
   lendPool: ILendPool;
   lendPoolLoan: ILendPoolLoan;
+  debtWETH: IDebtToken;
 
   // ape staking
   apeStaking: IApeCoinStaking;
@@ -138,6 +141,7 @@ export async function setupContracts(): Promise<Contracts> {
 
   const lendPool = await ethers.getContractAt("ILendPool", await bendAddressesProvider.getLendPool());
   const lendPoolLoan = await ethers.getContractAt("ILendPoolLoan", await bendAddressesProvider.getLendPoolLoan());
+  const debtWETH = await ethers.getContractAt("IDebtToken", getParams(BendDebtETH, networkName));
 
   const apeStaking = await ethers.getContractAt("IApeCoinStaking", getParams(APE_STAKING, networkName));
 
@@ -182,6 +186,7 @@ export async function setupContracts(): Promise<Contracts> {
     bendAddressesProvider,
     lendPool,
     lendPoolLoan,
+    debtWETH,
     apeStaking,
     stakeProxy,
     stakeManager,

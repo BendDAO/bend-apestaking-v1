@@ -19,6 +19,10 @@ import {
   skipHourBlocks,
 } from "./utils";
 
+fc.configureGlobal({
+  endOnFailure: true,
+});
+
 /* eslint-disable no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) => {
@@ -164,7 +168,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
         constants.AddressZero,
         constants.AddressZero
       )
-    ).to.rejectedWith("Initializable: contract is already initialized");
+    ).to.revertedWith("Initializable: contract is already initialized");
     pools = await contracts.apeStaking.getPoolsUI();
     lastRevert = "init";
     await snapshots.capture("init");
@@ -175,7 +179,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("Revert - Receive ETH not allowed", async () => {
-    await expect(env.admin.sendTransaction({ to: contracts.stakeProxy.address, value: makeBN18(1) })).to.rejectedWith(
+    await expect(env.admin.sendTransaction({ to: contracts.stakeProxy.address, value: makeBN18(1) })).to.revertedWith(
       "Receive ETH not allowed"
     );
   });
@@ -332,7 +336,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("unStake: unStake if not staked", async () => {
-    await expect(contracts.stakeProxy.unStake()).to.be.rejectedWith("StakeProxy: no staking at all");
+    await expect(contracts.stakeProxy.unStake()).to.be.revertedWith("StakeProxy: no staking at all");
     expect(await contracts.stakeProxy.withdrawable(constants.AddressZero)).to.eq(constants.Zero);
     expect(await contracts.stakeProxy.claimable(constants.AddressZero, constants.Zero)).to.eq(constants.Zero);
   });
@@ -443,7 +447,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
     expect(await contracts.stakeProxy.unStake()).to.not.be.reverted;
 
-    await expect(contracts.stakeProxy.unStake()).to.rejectedWith("StakeProxy: already unStaked");
+    await expect(contracts.stakeProxy.unStake()).to.revertedWith("StakeProxy: already unStaked");
   });
 
   it("unStake: check state after unStake", async () => {
@@ -747,7 +751,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("claim: revert - not ape owner", async () => {
-    await expect(contracts.stakeProxy.claim(apeStaked.staker, 0, constants.AddressZero)).to.rejectedWith(
+    await expect(contracts.stakeProxy.claim(apeStaked.staker, 0, constants.AddressZero)).to.revertedWith(
       "StakeProxy: not ape owner"
     );
   });
@@ -765,7 +769,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
       .connect(await ethers.getSigner(contracts.stakeProxy.address))
       .transferFrom(contracts.stakeProxy.address, env.admin.address, bakcStaked.tokenId);
 
-    await expect(contracts.stakeProxy.claim(apeStaked.staker, 0, constants.AddressZero)).to.rejectedWith(
+    await expect(contracts.stakeProxy.claim(apeStaked.staker, 0, constants.AddressZero)).to.revertedWith(
       "StakeProxy: not bakc owner"
     );
   });
@@ -905,7 +909,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("withdraw: revert - can't withdraw before unStake", async () => {
-    await expect(contracts.stakeProxy.withdraw(apeStaked.staker)).to.rejectedWith("StakeProxy: can't withdraw");
+    await expect(contracts.stakeProxy.withdraw(apeStaked.staker)).to.revertedWith("StakeProxy: can't withdraw");
   });
 
   it("withdraw: after unStake", async () => {

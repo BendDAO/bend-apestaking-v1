@@ -32,7 +32,7 @@ library NFTProxy {
         address nftAsset,
         uint256 tokenId
     ) internal view returns (bool) {
-        return proxies._values[nftAsset][tokenId].length() == 0;
+        return size(proxies, nftAsset, tokenId) == 0;
     }
 
     function size(
