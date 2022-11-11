@@ -2,7 +2,7 @@
   "manifestVersion": "3.2",
   "admin": {
     "address": "0x22849fA3fc874E501494005e77fd4C13b6465e6F",
-    "txHash": "0x01239b5181e50f67cff91302184f43d3263a745519c5bca057388d5cef506926"
+    "txHash": "0x765b87e288abba6b07b1f2f676dfebbea81c9f855aec96fba188f67326c982ee"
   },
   "proxies": [
     {
@@ -27,12 +27,12 @@
     },
     {
       "address": "0x2B643390fE2BeD273E7989cADb856389034bE4cd",
-      "txHash": "0x19681b37c4c1e32d59e746e062e87613421679e3241e91acf03fc38b326d2e54",
+      "txHash": "0x9e9ee8b64c974cf590651de03ebd13d134f5a66c438e1e4d03cd3d343a04ced0",
       "kind": "transparent"
     },
     {
       "address": "0xbEECC553d3A545f577a9e256B91C7b11085F3683",
-      "txHash": "0xe33e901c697eb885ae87f7dbaebdfc8033c42cacb354d260f8fda16d7f5c8651",
+      "txHash": "0x70f29764a3205410bde18e4ec1dbec076b84aaab77c1e1d06ea1fa437e6d99cf",
       "kind": "transparent"
     }
   ],
@@ -870,9 +870,9 @@
         }
       }
     },
-    "c5a04fd84bf63d51e9db645ff34b108e6cbbd76c905c58fe47ceacb9761652ce": {
+    "2a2c03a4ea1dc225991afb8da8412e162be71421c77ee15f656ad333096f2383": {
       "address": "0x376Cff03f76fa4b7dC5a68869Ec62DEd339c0f34",
-      "txHash": "0x58ad719168f45270480be567c3df7e3e661d31249c171687f7ecbfb54a98fe55",
+      "txHash": "0x91fae9a9b68beb8ea9717344791886bf60bc264783a3851076a3b0c97dfad2d3",
       "layout": {
         "storage": [
           {
@@ -960,25 +960,25 @@
             "label": "_stakedProxies",
             "offset": 0,
             "slot": "251",
-            "type": "t_struct(Proxies)18699_storage",
+            "type": "t_struct(Proxies)13436_storage",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:51"
+            "src": "contracts/StakeManager.sol:45"
           },
           {
             "label": "proxies",
             "offset": 0,
             "slot": "252",
-            "type": "t_mapping(t_contract(IStakeProxy)17745,t_bool)",
+            "type": "t_mapping(t_contract(IStakeProxy)12762,t_bool)",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:52"
+            "src": "contracts/StakeManager.sol:46"
           },
           {
             "label": "unStaked",
             "offset": 0,
             "slot": "253",
-            "type": "t_mapping(t_contract(IStakeProxy)17745,t_mapping(t_address,t_bool))",
+            "type": "t_mapping(t_contract(IStakeProxy)12762,t_mapping(t_address,t_bool))",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:53"
+            "src": "contracts/StakeManager.sol:47"
           },
           {
             "label": "feeRecipient",
@@ -986,7 +986,7 @@
             "slot": "254",
             "type": "t_address",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:55"
+            "src": "contracts/StakeManager.sol:49"
           },
           {
             "label": "fee",
@@ -994,23 +994,23 @@
             "slot": "255",
             "type": "t_uint256",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:56"
+            "src": "contracts/StakeManager.sol:50"
           },
           {
             "label": "boundBayc",
             "offset": 0,
             "slot": "256",
-            "type": "t_contract(IBNFT)17187",
+            "type": "t_contract(IBNFT)12216",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:58"
+            "src": "contracts/StakeManager.sol:52"
           },
           {
             "label": "boundMayc",
             "offset": 0,
             "slot": "257",
-            "type": "t_contract(IBNFT)17187",
+            "type": "t_contract(IBNFT)12216",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:59"
+            "src": "contracts/StakeManager.sol:53"
           },
           {
             "label": "bayc",
@@ -1018,7 +1018,7 @@
             "slot": "258",
             "type": "t_contract(IERC721Upgradeable)1091",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:61"
+            "src": "contracts/StakeManager.sol:55"
           },
           {
             "label": "mayc",
@@ -1026,7 +1026,7 @@
             "slot": "259",
             "type": "t_contract(IERC721Upgradeable)1091",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:62"
+            "src": "contracts/StakeManager.sol:56"
           },
           {
             "label": "bakc",
@@ -1034,7 +1034,7 @@
             "slot": "260",
             "type": "t_contract(IERC721Upgradeable)1091",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:63"
+            "src": "contracts/StakeManager.sol:57"
           },
           {
             "label": "apeCoin",
@@ -1042,23 +1042,23 @@
             "slot": "261",
             "type": "t_contract(IERC20Upgradeable)640",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:65"
+            "src": "contracts/StakeManager.sol:59"
           },
           {
             "label": "WETH",
             "offset": 0,
             "slot": "262",
-            "type": "t_contract(IWETH)17776",
+            "type": "t_contract(IWETH)12793",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:66"
+            "src": "contracts/StakeManager.sol:60"
           },
           {
             "label": "apeStaking",
             "offset": 0,
             "slot": "263",
-            "type": "t_contract(IApeCoinStaking)17115",
+            "type": "t_contract(IApeCoinStaking)12144",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:68"
+            "src": "contracts/StakeManager.sol:62"
           },
           {
             "label": "proxyImplementation",
@@ -1066,7 +1066,7 @@
             "slot": "264",
             "type": "t_address",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:70"
+            "src": "contracts/StakeManager.sol:64"
           },
           {
             "label": "matcher",
@@ -1074,15 +1074,15 @@
             "slot": "265",
             "type": "t_address",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:72"
+            "src": "contracts/StakeManager.sol:66"
           },
           {
             "label": "lendPoolAddressedProvider",
             "offset": 0,
             "slot": "266",
-            "type": "t_contract(ILendPoolAddressesProvider)17285",
+            "type": "t_contract(ILendPoolAddressesProvider)12302",
             "contract": "StakeManager",
-            "src": "contracts/StakeManager.sol:74"
+            "src": "contracts/StakeManager.sol:68"
           }
         ],
         "types": {
@@ -1110,11 +1110,11 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IApeCoinStaking)17115": {
+          "t_contract(IApeCoinStaking)12144": {
             "label": "contract IApeCoinStaking",
             "numberOfBytes": "20"
           },
-          "t_contract(IBNFT)17187": {
+          "t_contract(IBNFT)12216": {
             "label": "contract IBNFT",
             "numberOfBytes": "20"
           },
@@ -1126,15 +1126,15 @@
             "label": "contract IERC721Upgradeable",
             "numberOfBytes": "20"
           },
-          "t_contract(ILendPoolAddressesProvider)17285": {
+          "t_contract(ILendPoolAddressesProvider)12302": {
             "label": "contract ILendPoolAddressesProvider",
             "numberOfBytes": "20"
           },
-          "t_contract(IStakeProxy)17745": {
+          "t_contract(IStakeProxy)12762": {
             "label": "contract IStakeProxy",
             "numberOfBytes": "20"
           },
-          "t_contract(IWETH)17776": {
+          "t_contract(IWETH)12793": {
             "label": "contract IWETH",
             "numberOfBytes": "20"
           },
@@ -1150,11 +1150,11 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_contract(IStakeProxy)17745,t_bool)": {
+          "t_mapping(t_contract(IStakeProxy)12762,t_bool)": {
             "label": "mapping(contract IStakeProxy => bool)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_contract(IStakeProxy)17745,t_mapping(t_address,t_bool))": {
+          "t_mapping(t_contract(IStakeProxy)12762,t_mapping(t_address,t_bool))": {
             "label": "mapping(contract IStakeProxy => mapping(address => bool))",
             "numberOfBytes": "32"
           },
@@ -1174,7 +1174,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Proxies)18699_storage": {
+          "t_struct(Proxies)13436_storage": {
             "label": "struct NFTProxy.Proxies",
             "members": [
               {
@@ -1215,9 +1215,9 @@
         }
       }
     },
-    "a4d9cd2b3700f306b99c827ae0b3e8f08e72c9163391cb9691e1e3ffcdd9737b": {
+    "1aee29db9260454ab84890b10b7ca3c27a4969566f0f2bf7ff45e12d802b7834": {
       "address": "0x4Db397C6bE0e707Bff0a569F3725314c23311f49",
-      "txHash": "0xf1c91be96e5216fd5b40d25a47a196fba0084f9927162e3f6b86b1e8ba2532fc",
+      "txHash": "0x47ef5251d3e7bc07d796f99a04851f372ba4f727fee42d020df88944141859ec",
       "layout": {
         "storage": [
           {
@@ -1283,7 +1283,7 @@
             "slot": "151",
             "type": "t_uint256",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:32"
+            "src": "contracts/BendStakeMatcher.sol:28"
           },
           {
             "label": "_CACHED_THIS",
@@ -1291,7 +1291,7 @@
             "slot": "152",
             "type": "t_address",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:33"
+            "src": "contracts/BendStakeMatcher.sol:29"
           },
           {
             "label": "DOMAIN_SEPARATOR",
@@ -1299,7 +1299,7 @@
             "slot": "153",
             "type": "t_bytes32",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:35"
+            "src": "contracts/BendStakeMatcher.sol:31"
           },
           {
             "label": "_HASHED_NAME",
@@ -1307,7 +1307,7 @@
             "slot": "154",
             "type": "t_bytes32",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:36"
+            "src": "contracts/BendStakeMatcher.sol:32"
           },
           {
             "label": "_HASHED_VERSION",
@@ -1315,7 +1315,7 @@
             "slot": "155",
             "type": "t_bytes32",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:37"
+            "src": "contracts/BendStakeMatcher.sol:33"
           },
           {
             "label": "_TYPE_HASH",
@@ -1323,23 +1323,23 @@
             "slot": "156",
             "type": "t_bytes32",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:38"
+            "src": "contracts/BendStakeMatcher.sol:34"
           },
           {
             "label": "stakeManager",
             "offset": 0,
             "slot": "157",
-            "type": "t_contract(IStakeManager)17513",
+            "type": "t_contract(IStakeManager)12530",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:40"
+            "src": "contracts/BendStakeMatcher.sol:36"
           },
           {
             "label": "lendPoolAddressedProvider",
             "offset": 0,
             "slot": "158",
-            "type": "t_contract(ILendPoolAddressesProvider)17285",
+            "type": "t_contract(ILendPoolAddressesProvider)12302",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:41"
+            "src": "contracts/BendStakeMatcher.sol:37"
           },
           {
             "label": "boundBayc",
@@ -1347,7 +1347,7 @@
             "slot": "159",
             "type": "t_address",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:42"
+            "src": "contracts/BendStakeMatcher.sol:38"
           },
           {
             "label": "boundMayc",
@@ -1355,7 +1355,7 @@
             "slot": "160",
             "type": "t_address",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:43"
+            "src": "contracts/BendStakeMatcher.sol:39"
           },
           {
             "label": "bayc",
@@ -1363,7 +1363,7 @@
             "slot": "161",
             "type": "t_address",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:44"
+            "src": "contracts/BendStakeMatcher.sol:40"
           },
           {
             "label": "mayc",
@@ -1371,7 +1371,7 @@
             "slot": "162",
             "type": "t_address",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:45"
+            "src": "contracts/BendStakeMatcher.sol:41"
           },
           {
             "label": "bakc",
@@ -1379,7 +1379,7 @@
             "slot": "163",
             "type": "t_address",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:46"
+            "src": "contracts/BendStakeMatcher.sol:42"
           },
           {
             "label": "apeCoin",
@@ -1387,7 +1387,7 @@
             "slot": "164",
             "type": "t_address",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:47"
+            "src": "contracts/BendStakeMatcher.sol:43"
           },
           {
             "label": "_isOfferNonceExecutedOrCancelled",
@@ -1395,7 +1395,7 @@
             "slot": "165",
             "type": "t_mapping(t_address,t_mapping(t_uint256,t_bool))",
             "contract": "BendStakeMatcher",
-            "src": "contracts/BendStakeMatcher.sol:49"
+            "src": "contracts/BendStakeMatcher.sol:45"
           }
         ],
         "types": {
@@ -1419,11 +1419,11 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(ILendPoolAddressesProvider)17285": {
+          "t_contract(ILendPoolAddressesProvider)12302": {
             "label": "contract ILendPoolAddressesProvider",
             "numberOfBytes": "20"
           },
-          "t_contract(IStakeManager)17513": {
+          "t_contract(IStakeManager)12530": {
             "label": "contract IStakeManager",
             "numberOfBytes": "20"
           },

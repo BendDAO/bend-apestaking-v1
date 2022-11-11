@@ -688,49 +688,35 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
         })
         .chain((v) => {
           let times = getPoolTime(v[0].poolId);
-          const randomTime1 = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
+          const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
           times = getPoolTime(v[1].poolId);
-          const randomTime2 = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
+          const randomTimes = fc.tuple(randomTime, randomTime).filter((v) => {
+            return v[0] < v[1] && Math.abs(v[0] - v[1]) > 100;
+          });
           return fc.tuple(
             randomWithLoan,
             fc.constant(v[0]),
-            randomTime1,
             fc.constantFrom(...v[0].stakers),
             fc.constant(v[1]),
-            randomTime2,
-            fc.constantFrom(...v[1].stakers)
+            fc.constantFrom(...v[1].stakers),
+            randomTimes
           );
         });
     };
     await fc.assert(
       fc
         .asyncProperty(randomParams(), async (v) => {
-          const [withLoan, param1, t1, unStaker1, param2, t2, unStaker2] = v;
+          const [withLoan, param1, unStaker1, param2, unStaker2, times] = v;
           await prepareStake(param1, withLoan);
           await doStake(param1);
           await prepareStake(param2, withLoan);
           await doStake(param2);
-          if (t1 === t2) {
-            await increaseTo(BigNumber.from(t1));
-            await advanceBlock();
-            await assertUnStake(unStaker1, param1);
-            await assertUnStake(unStaker2, param2);
-          }
-          if (t1 < t2) {
-            await increaseTo(BigNumber.from(t1));
-            await advanceBlock();
-            await assertUnStake(unStaker1, param1);
-            await increaseTo(BigNumber.from(t2));
-            await advanceBlock();
-            await assertUnStake(unStaker2, param2);
-          } else {
-            await increaseTo(BigNumber.from(t2));
-            await advanceBlock();
-            await assertUnStake(unStaker2, param2);
-            await increaseTo(BigNumber.from(t1));
-            await advanceBlock();
-            await assertUnStake(unStaker1, param1);
-          }
+          await increaseTo(BigNumber.from(times[0]));
+          await advanceBlock();
+          await assertUnStake(unStaker1, param1);
+          await increaseTo(BigNumber.from(times[1]));
+          await advanceBlock();
+          await assertUnStake(unStaker2, param2);
         })
         .beforeEach(async () => {
           await snapshots.revert("init");
