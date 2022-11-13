@@ -5,7 +5,13 @@ import {DataTypes} from "../libraries/DataTypes.sol";
 import {IStakeProxy} from "./IStakeProxy.sol";
 
 interface IStakeManager {
-    event Staked(address indexed proxy, bytes32 apeOfferHash, bytes32 bakcOfferHash, bytes32 coinOfferHash);
+    event Staked(
+        address indexed proxy,
+        DataTypes.ApeStaked apeStaked,
+        DataTypes.BakcStaked bakcStaked,
+        DataTypes.CoinStaked coinStaked
+    );
+
     event UnStaked(address indexed proxy, address indexed staker);
 
     event FeePaid(address indexed payer, address indexed feeRecipient, uint256 apeCoinAmount);

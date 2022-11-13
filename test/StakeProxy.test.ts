@@ -13,9 +13,9 @@ import {
   emptyBytes32,
   getContract,
   makeBN18,
-  randomPairedStakeParam,
-  randomSingleStakeParam,
-  randomStakeParam,
+  randomPairedStake,
+  randomSingleStake,
+  randomStake,
   skipHourBlocks,
 } from "./utils";
 
@@ -185,7 +185,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("onlyOwner: revertions work as expected", async () => {
-    await prepareData(randomStakeParam(env, contracts));
+    await prepareData(randomStake(env, contracts));
     await expect(
       contracts.stakeProxy.connect(env.accounts[1]).stake(apeStaked, bakcStaked, coinStaked)
     ).to.be.revertedWith("Ownable: caller is not the owner");
@@ -260,7 +260,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("stake: revert - ape already staked", async () => {
-    await prepareData(randomSingleStakeParam(env, contracts));
+    await prepareData(randomSingleStake(env, contracts));
     await apeContract
       .connect(await ethers.getSigner(await apeStaked.staker))
       .transferFrom(apeStaked.staker, env.admin.address, apeStaked.tokenId);
@@ -282,7 +282,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("stake: revert - not bakc owner", async () => {
-    await prepareData(randomPairedStakeParam(env, contracts));
+    await prepareData(randomPairedStake(env, contracts));
     await apeContract
       .connect(await ethers.getSigner(await apeStaked.staker))
       .transferFrom(apeStaked.staker, contracts.stakeProxy.address, apeStaked.tokenId);
@@ -320,7 +320,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("stake: revert - ERC20: transfer amount exceeds balance", async () => {
-    await prepareData(randomStakeParam(env, contracts));
+    await prepareData(randomStake(env, contracts));
     await apeContract
       .connect(await ethers.getSigner(await apeStaked.staker))
       .transferFrom(apeStaked.staker, contracts.stakeProxy.address, apeStaked.tokenId);
@@ -343,7 +343,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
   it("stake: check state if stake success", async () => {
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(env, contracts), async (v) => {
+      fc.asyncProperty(randomStake(env, contracts), async (v) => {
         await prepareForStake(v);
 
         let apeStakedStorage = await contracts.stakeProxy.apeStaked();
@@ -454,7 +454,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
 
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -502,7 +502,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
 
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -596,7 +596,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
 
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -651,7 +651,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("withdrawable: amount will always be zero before unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -685,7 +685,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("withdrawable: amount will always be const after unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -757,7 +757,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("claim: revert - not bakc owner", async () => {
-    await prepareData(randomPairedStakeParam(env, contracts));
+    await prepareData(randomPairedStake(env, contracts));
     await stake();
 
     await apeContract.transferFrom(env.admin.address, contracts.stakeProxy.address, apeStaked.tokenId);
@@ -777,7 +777,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("claim: claims before unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -840,7 +840,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   it("claim: claims over unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
         const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
         const time = Math.max(now + 100, startTimestamp);
@@ -914,7 +914,7 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
   it("withdraw: after unStake", async () => {
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(env, contracts), async (v) => {
+      fc.asyncProperty(randomStake(env, contracts), async (v) => {
         await prepareForStake(v);
         await stake();
 

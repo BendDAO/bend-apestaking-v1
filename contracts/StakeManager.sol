@@ -186,7 +186,13 @@ contract StakeManager is
         return true;
     }
 
-    function beforeLoanRepaid(address nftAsset, uint256 nftTokenId) external override onlyLendPool returns (bool) {
+    function beforeLoanRepaid(address nftAsset, uint256 nftTokenId)
+        external
+        override
+        nonReentrant
+        onlyLendPool
+        returns (bool)
+    {
         address[] memory _proxies = _stakedProxies.values(nftAsset, nftTokenId);
 
         for (uint256 i = 0; i < _proxies.length; i++) {
@@ -264,7 +270,7 @@ contract StakeManager is
         DataTypes.BakcStaked memory bakcStaked,
         DataTypes.CoinStaked memory coinStaked
     ) internal {
-        IERC721Upgradeable iApe = IERC721Upgradeable(apeStaked.collection);
+        IERC721Upgradeable ape = IERC721Upgradeable(apeStaked.collection);
 
         // clone proxy
         IStakeProxy proxy = IStakeProxy(proxyImplementation.clone());
@@ -278,7 +284,7 @@ contract StakeManager is
         );
 
         // transfer nft and ape coin to proxy
-        iApe.safeTransferFrom(address(this), address(proxy), apeStaked.tokenId);
+        ape.safeTransferFrom(address(this), address(proxy), apeStaked.tokenId);
         uint256 coinAmount = apeStaked.coinAmount;
         if (!bakcStaked.isNull()) {
             require(bakc.ownerOf(bakcStaked.tokenId) == address(this), "StakeManager: not bakc owner");
@@ -295,7 +301,7 @@ contract StakeManager is
         proxy.stake(apeStaked, bakcStaked, coinStaked);
 
         // emit event
-        emit Staked(address(proxy), apeStaked.offerHash, bakcStaked.offerHash, coinStaked.offerHash);
+        emit Staked(address(proxy), apeStaked, bakcStaked, coinStaked);
 
         // save storage
         proxies[proxy] = true;
@@ -369,16 +375,16 @@ contract StakeManager is
         DataTypes.ApeStaked memory apeStaked = proxy.apeStaked();
         DataTypes.BakcStaked memory bakcStaked = proxy.bakcStaked();
 
-        IERC721Upgradeable iApe = IERC721Upgradeable(apeStaked.collection);
+        IERC721Upgradeable ape = IERC721Upgradeable(apeStaked.collection);
 
         // should transfer nft to proxy when unstake
-        iApe.safeTransferFrom(address(this), address(proxy), apeStaked.tokenId);
+        ape.safeTransferFrom(address(this), address(proxy), apeStaked.tokenId);
 
         // do proxy unstake
         proxy.unStake();
 
         // check nft ownership
-        require(iApe.ownerOf(apeStaked.tokenId) == address(this), "StakeManager: not ape owner");
+        require(ape.ownerOf(apeStaked.tokenId) == address(this), "StakeManager: not ape owner");
 
         if (!bakcStaked.isNull()) {
             // remove staked proxy for bakc
@@ -418,11 +424,11 @@ contract StakeManager is
         address apeNft = apeStaked.collection;
         uint256 apeTokenId = apeStaked.tokenId;
 
-        IERC721Upgradeable iApe = IERC721Upgradeable(apeNft);
+        IERC721Upgradeable ape = IERC721Upgradeable(apeNft);
 
         // should transfer ape to proxy if not unstaked
         if (!proxy.unStaked()) {
-            iApe.safeTransferFrom(address(this), address(proxy), apeTokenId);
+            ape.safeTransferFrom(address(this), address(proxy), apeTokenId);
         }
 
         // claim rewards for staker

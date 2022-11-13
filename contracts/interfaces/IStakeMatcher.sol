@@ -9,6 +9,8 @@ interface IStakeMatcher {
 
     function cancelOffers(uint256[] calldata offerNonces) external;
 
+    function isCancelled(address user, uint256 offerNonce) external view returns (bool);
+
     function matchWithBakcAndCoin(
         DataTypes.ApeOffer calldata apeOffer,
         DataTypes.BakcOffer calldata bakcOffer,

@@ -13,7 +13,7 @@ library DataTypes {
 
     bytes32 internal constant APE_OFFER_HASH =
         keccak256(
-            "ApeOffer(uint8 poolType,address staker,address collection,uint256 tokenId,uint256 coinAmount,uint256 apeShare,uint256 coinShare,uint256 nonce)"
+            "ApeOffer(uint8 poolType,address staker,address collection,uint256 tokenId,uint256 coinAmount,uint256 apeShare,uint256 coinShare,uint256 endTime,uint256 nonce)"
         );
 
     bytes32 internal constant APE_OFFER_KEY =
@@ -21,11 +21,13 @@ library DataTypes {
 
     bytes32 internal constant BAKC_OFFER_HASH =
         keccak256(
-            "BakcOffer(bytes32 key,address staker,uint256 tokenId,uint256 coinAmount,uint256 bakcShare,uint256 coinShare,uint256 nonce)"
+            "BakcOffer(bytes32 key,address staker,uint256 tokenId,uint256 coinAmount,uint256 bakcShare,uint256 coinShare,uint256 endTime,uint256 nonce)"
         );
 
     bytes32 internal constant COIN_OFFER_HASH =
-        keccak256("CoinOffer(bytes32 key,address staker,uint256 coinAmount,uint256 coinShare,uint256 nonce)");
+        keccak256(
+            "CoinOffer(bytes32 key,address staker,uint256 coinAmount,uint256 coinShare,uint256 endTime,uint256 nonce)"
+        );
 
     struct ApeOffer {
         PoolType poolType;
@@ -35,6 +37,7 @@ library DataTypes {
         uint256 coinAmount;
         uint256 apeShare;
         uint256 coinShare;
+        uint256 endTime;
         uint256 nonce;
         uint8 v;
         bytes32 r;
@@ -53,6 +56,7 @@ library DataTypes {
                     apeOffer.coinAmount,
                     apeOffer.apeShare,
                     apeOffer.coinShare,
+                    apeOffer.endTime,
                     apeOffer.nonce
                 )
             );
@@ -82,6 +86,7 @@ library DataTypes {
         uint256 coinAmount;
         uint256 bakcShare;
         uint256 coinShare;
+        uint256 endTime;
         uint256 nonce;
         uint8 v;
         bytes32 r;
@@ -121,6 +126,7 @@ library DataTypes {
                     bakcOffer.coinAmount,
                     bakcOffer.bakcShare,
                     bakcOffer.coinShare,
+                    bakcOffer.endTime,
                     bakcOffer.nonce
                 )
             );
@@ -131,6 +137,7 @@ library DataTypes {
         address staker;
         uint256 coinAmount;
         uint256 coinShare;
+        uint256 endTime;
         uint256 nonce;
         uint8 v;
         bytes32 r;
@@ -164,6 +171,7 @@ library DataTypes {
                     coinOffer.staker,
                     coinOffer.coinAmount,
                     coinOffer.coinShare,
+                    coinOffer.endTime,
                     coinOffer.nonce
                 )
             );

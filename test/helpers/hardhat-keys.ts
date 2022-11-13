@@ -26,13 +26,16 @@ export async function findPrivateKey(publicKey: string): Promise<string> {
     case "0x71be63f3384f5fb98995898a86b02fb2426c5788":
       return "0x701b615bbdfb9de65240bc28bd21bbc0d996645a3dd57e7b12bc2bdf6f192c82";
 
+    case "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc":
+      return "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba";
+
     default:
       try {
         // @ts-ignore
         const keys = await import("../../keys");
         return keys.findPrivateKey(publicKey);
       } catch (error) {
-        throw new Error("No private key found");
+        throw new Error(`No private key found for ${publicKey}`);
       }
   }
 }

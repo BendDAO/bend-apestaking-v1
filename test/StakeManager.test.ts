@@ -5,16 +5,10 @@ import { Contracts, Env, makeSuite, Snapshots } from "./_setup";
 import { BigNumber, constants, Contract } from "ethers";
 
 import { IStakeProxy } from "../typechain-types/contracts/interfaces/IStakeProxy";
-import {
-  getContract,
-  makeBN18,
-  randomPairedStakeParam,
-  randomSingleStakeParam,
-  randomStakeParam,
-  skipHourBlocks,
-} from "./utils";
+import { getContract, makeBN18, randomPairedStake, randomSingleStake, randomStake, skipHourBlocks } from "./utils";
 import { advanceBlock, increaseTo, latest } from "./helpers/block-traveller";
 import { impersonateAccount, setBalance } from "@nomicfoundation/hardhat-network-helpers";
+import { parseEvents } from "./helpers/transaction-helper";
 
 fc.configureGlobal({
   numRuns: 10,
@@ -87,14 +81,13 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
 
   const doStake = async (param: any) => {
     const tx = await contracts.stakeManager.stake(param.apeStaked, param.bakcStaked, param.coinStaked);
-    const { events } = await tx.wait();
-    const args = events?.find((x) => x.event === "Staked")?.args;
-
-    if (args) {
-      param.proxy = await getContract<IStakeProxy>("IStakeProxy", args[0]);
+    const events = parseEvents(await tx.wait(), contracts.stakeManager.interface);
+    const stakedEvent = events.Staked;
+    if (stakedEvent) {
+      param.proxy = await getContract<IStakeProxy>("IStakeProxy", stakedEvent.proxy);
       return param;
     } else {
-      throw new Error("stake error");
+      throw new Error("match error");
     }
   };
 
@@ -318,7 +311,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("claimable: check state", async () => {
     const fee = await contracts.stakeManager.fee();
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(env, contracts), randomWithLoan, async (param, withLoan) => {
+      fc.asyncProperty(randomStake(env, contracts), randomWithLoan, async (param, withLoan) => {
         await prepareStake(param, withLoan);
         await doStake(param);
         const proxy = (param as any).proxy;
@@ -401,7 +394,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     await expect(contracts.stakeManager.claim(constants.AddressZero)).to.be.revertedWith("StakeManager: invalid proxy");
 
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(env, contracts), randomWithLoan, async (param, withLoan) => {
+      fc.asyncProperty(randomStake(env, contracts), randomWithLoan, async (param, withLoan) => {
         await prepareStake(param, withLoan);
         await doStake(param);
         const proxy = (param as any).proxy;
@@ -446,7 +439,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
 
   it("onlyMatcher: revertions work as expected", async () => {
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(env, contracts), randomWithLoan, async (param, withLoan) => {
+      fc.asyncProperty(randomStake(env, contracts), randomWithLoan, async (param, withLoan) => {
         await prepareStake(param, withLoan);
         await expect(
           contracts.stakeManager.connect(env.accounts[1]).stake(param.apeStaked, param.bakcStaked, param.coinStaked)
@@ -458,7 +451,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
 
   it("stake: revert - stake with invalid ape", async () => {
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(env, contracts), async (param) => {
+      fc.asyncProperty(randomStake(env, contracts), async (param) => {
         param.apeStaked.collection = constants.AddressZero;
         await expect(contracts.stakeManager.stake(param.apeStaked, param.bakcStaked, param.coinStaked)).to.revertedWith(
           "StakeManager: not ape collection"
@@ -470,7 +463,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
 
   it("stake: revert - stake with ape not own", async () => {
     await fc.assert(
-      fc.asyncProperty(randomStakeParam(env, contracts), async (param) => {
+      fc.asyncProperty(randomStake(env, contracts), async (param) => {
         param.apeStaked.collection = constants.AddressZero;
         await expect(contracts.stakeManager.stake(param.apeStaked, param.bakcStaked, param.coinStaked)).to.revertedWith(
           "StakeManager: not ape collection"
@@ -483,7 +476,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("stake: revert - staker with bnft not own", async () => {
     const randomParams = () => {
       return fc
-        .tuple(randomSingleStakeParam(env, contracts), randomSingleStakeParam(env, contracts), randomWithLoan)
+        .tuple(randomSingleStake(env, contracts), randomSingleStake(env, contracts), randomWithLoan)
         .filter((v) => {
           return (
             v[0].apeStaked.collection === v[1].apeStaked.collection &&
@@ -544,7 +537,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("stake: revert - stake twice with same ape to the ape pool", async () => {
     const randomParams = () => {
       return fc
-        .tuple(randomSingleStakeParam(env, contracts), randomSingleStakeParam(env, contracts), randomWithLoan)
+        .tuple(randomSingleStake(env, contracts), randomSingleStake(env, contracts), randomWithLoan)
         .filter((v) => {
           return (
             v[0].apeStaked.collection === v[1].apeStaked.collection &&
@@ -576,12 +569,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("stake: revert - stake twice with same bakc to the bakc pool", async () => {
     const randomParams = () => {
       return fc
-        .tuple(
-          randomPairedStakeParam(env, contracts),
-          randomWithLoan,
-          randomPairedStakeParam(env, contracts),
-          randomWithLoan
-        )
+        .tuple(randomPairedStake(env, contracts), randomWithLoan, randomPairedStake(env, contracts), randomWithLoan)
         .filter((v) => {
           return v[0].bakcStaked.tokenId === v[2].bakcStaked.tokenId;
         });
@@ -614,8 +602,8 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
 
   it("stake: stake twice, different proxy with same ape", async () => {
     const randomTwoStakes = fc.oneof(
-      fc.tuple(randomSingleStakeParam(env, contracts), randomPairedStakeParam(env, contracts)),
-      fc.tuple(randomPairedStakeParam(env, contracts), randomSingleStakeParam(env, contracts))
+      fc.tuple(randomSingleStake(env, contracts), randomPairedStake(env, contracts)),
+      fc.tuple(randomPairedStake(env, contracts), randomSingleStake(env, contracts))
     );
     const randomParams = () => {
       return fc.tuple(randomTwoStakes, randomWithLoan).filter((v) => {
@@ -647,7 +635,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
 
   it("unStake: revert - unStake twice, same proxy, same staker", async () => {
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const randomUnStaker = fc.constantFrom(...v.stakers);
         return fc.tuple(fc.constant(v), randomWithLoan, randomUnStaker);
       });
@@ -674,8 +662,8 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("unStake: unStake twice, different proxy with same ape", async () => {
     const now = await latest();
     const randomTwoStakes = fc.oneof(
-      fc.tuple(randomSingleStakeParam(env, contracts), randomPairedStakeParam(env, contracts)),
-      fc.tuple(randomPairedStakeParam(env, contracts), randomSingleStakeParam(env, contracts))
+      fc.tuple(randomSingleStake(env, contracts), randomPairedStake(env, contracts)),
+      fc.tuple(randomPairedStake(env, contracts), randomSingleStake(env, contracts))
     );
     const randomParams = () => {
       return randomTwoStakes
@@ -728,7 +716,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("unStake: unStake by all staker, same proxy", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
         const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
         const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
@@ -762,7 +750,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("claim: claim by all staker before unStake, same proxy", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
         const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
         const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
@@ -796,7 +784,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("claim: claim by all staker over unStake, same proxy", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
         const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
 
@@ -836,7 +824,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("claim: claim twice after unStake, same proxy, same staker", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
         const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
         const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
@@ -882,7 +870,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
 
   it("borrowETH: revert - borrowETH with bnft not own", async () => {
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         return fc.tuple(
           fc.constant(v),
           fc.constantFrom(...env.accounts).filter((s) => {
@@ -922,7 +910,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("borrowETH: revert - borrowETH with bnft not minted by StakeManager", async () => {
     await fc.assert(
       fc
-        .asyncProperty(randomStakeParam(env, contracts), async (param) => {
+        .asyncProperty(randomStake(env, contracts), async (param) => {
           await prepareStake(param, true);
           await doStake(param);
           const apeStaked = await (param as any).proxy.apeStaked();
@@ -950,7 +938,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   it("borrowETH: borrowETH then unStake", async () => {
     const now = await latest();
     const randomParams = () => {
-      return randomStakeParam(env, contracts).chain((v) => {
+      return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
         const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
         return fc.tuple(fc.constant(v), randomTime);

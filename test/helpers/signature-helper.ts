@@ -1,4 +1,4 @@
-import { BigNumber, utils, Wallet } from "ethers";
+import { BigNumberish, utils, Wallet } from "ethers";
 /* eslint-disable node/no-extraneous-import */
 import { TypedDataDomain } from "@ethersproject/abstract-signer";
 /* eslint-disable node/no-extraneous-import */
@@ -21,7 +21,7 @@ const { defaultAbiCoder, keccak256, solidityPack } = utils;
 export const signTypedData = async (
   privateKey: string,
   types: string[],
-  values: (string | boolean | BigNumber)[],
+  values: (string | boolean | BigNumberish)[],
   domain: TypedDataDomain
 ): Promise<Signature> => {
   const domainSeparator = _TypedDataEncoder.hashDomain(domain);
