@@ -97,18 +97,47 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         DataTypes.BakcOffer calldata bakcOffer,
         DataTypes.CoinOffer calldata coinOffer
     ) external override nonReentrant {
-        _validateApeOffer(apeOffer, DataTypes.PoolType.PAIRED);
+        _validateApeOffer(apeOffer);
+        _validateBakcOffer(bakcOffer);
+        _validateCoinOffer(coinOffer);
 
-        bytes32 key = apeOffer.key();
-        _validateBakcOffer(bakcOffer, key);
-        _validateCoinOffer(coinOffer, key);
+        // check pool id
+        require(
+            apeOffer.poolId == DataTypes.BAKC_POOL_ID && coinOffer.poolId == DataTypes.BAKC_POOL_ID,
+            "Offer: invalid pool id"
+        );
 
-        require(apeOffer.coinShare == bakcOffer.coinShare, "Offer: invalid bakc offer");
-        require(apeOffer.coinShare == coinOffer.coinShare, "Offer: invalid coin offer");
+        // check offerors
+        if (apeOffer.bakcOfferor != address(0)) {
+            require(apeOffer.bakcOfferor == bakcOffer.staker, "ApeOffer: bakc offeror mismatch");
+        }
+        if (apeOffer.coinOfferor != address(0)) {
+            require(apeOffer.coinOfferor == coinOffer.staker, "ApeOffer: coin offeror mismatch");
+        }
+        if (bakcOffer.apeOfferor != address(0)) {
+            require(bakcOffer.apeOfferor == apeOffer.staker, "BakcOffer: ape offeror mismatch");
+        }
+        if (bakcOffer.coinOfferor != address(0)) {
+            require(bakcOffer.coinOfferor == coinOffer.staker, "BakcOffer: coin offeror mismatch");
+        }
+        if (coinOffer.apeOfferor != address(0)) {
+            require(coinOffer.apeOfferor == apeOffer.staker, "CoinOffer: ape offeror mismatch");
+        }
+        if (coinOffer.bakcOfferor != address(0)) {
+            require(coinOffer.bakcOfferor == bakcOffer.staker, "CoinOffer: bakc offeror mismatch");
+        }
+
+        // check shares
+        require(
+            apeOffer.coinShare == bakcOffer.coinShare && apeOffer.coinShare == coinOffer.coinShare,
+            "Offer: coin share mismatch"
+        );
         require(
             apeOffer.apeShare + bakcOffer.bakcShare + coinOffer.coinShare == PercentageMath.PERCENTAGE_FACTOR,
             "Offer: share total amount invalid"
         );
+
+        // check ape coin cap
         require(
             apeOffer.coinAmount + bakcOffer.coinAmount + coinOffer.coinAmount ==
                 stakeManager.getCurrentApeCoinCap(DataTypes.BAKC_POOL_ID),
@@ -123,18 +152,28 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         override
         nonReentrant
     {
-        _validateApeOffer(apeOffer, DataTypes.PoolType.PAIRED);
+        _validateApeOffer(apeOffer);
+        _validateBakcOffer(bakcOffer);
 
-        bytes32 key = apeOffer.key();
-        _validateBakcOffer(bakcOffer, key);
+        // check pool id
+        require(apeOffer.poolId == DataTypes.BAKC_POOL_ID, "Offer: invalid pool id");
 
+        // check offerors
+        if (apeOffer.bakcOfferor != address(0)) {
+            require(apeOffer.bakcOfferor == bakcOffer.staker, "ApeOffer: bakc offeror mismatch");
+        }
+        if (bakcOffer.apeOfferor != address(0)) {
+            require(bakcOffer.apeOfferor == apeOffer.staker, "BakcOffer: ape offeror mismatch");
+        }
+
+        // check shares
         require(apeOffer.coinShare == bakcOffer.coinShare, "Offer: invalid bakc offer");
-
         require(
             apeOffer.apeShare + bakcOffer.bakcShare + apeOffer.coinShare == PercentageMath.PERCENTAGE_FACTOR,
             "Offer: share total amount invalid"
         );
 
+        // check ape coin cap
         require(
             apeOffer.coinAmount + bakcOffer.coinAmount == stakeManager.getCurrentApeCoinCap(DataTypes.BAKC_POOL_ID),
             "Offer: ape coin total amount invalid"
@@ -148,23 +187,40 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         override
         nonReentrant
     {
-        _validateApeOffer(apeOffer, DataTypes.PoolType.SINGLE);
+        _validateApeOffer(apeOffer);
+        _validateCoinOffer(coinOffer);
 
-        bytes32 key = apeOffer.key();
-        _validateCoinOffer(coinOffer, key);
+        // check pool id
+        require(
+            apeOffer.poolId == DataTypes.BAYC_POOL_ID || apeOffer.poolId == DataTypes.MAYC_POOL_ID,
+            "ApeOffer: invalid pool id"
+        );
+        require(
+            coinOffer.poolId == DataTypes.BAYC_POOL_ID || coinOffer.poolId == DataTypes.MAYC_POOL_ID,
+            "CoinOffer: invalid pool id"
+        );
+        require(apeOffer.poolId == coinOffer.poolId, "Offer: pool id mismatch");
 
+        // check offerors
+        if (apeOffer.coinOfferor != address(0)) {
+            require(apeOffer.coinOfferor == coinOffer.staker, "ApeOffer: coin offeror mismatch");
+        }
+        if (coinOffer.apeOfferor != address(0)) {
+            require(coinOffer.apeOfferor == apeOffer.staker, "CoinOffer: ape offeror mismatch");
+        }
+
+        // check shares
         require(apeOffer.coinShare == coinOffer.coinShare, "Offer: invalid coin offer");
-
         require(
             apeOffer.apeShare + coinOffer.coinShare == PercentageMath.PERCENTAGE_FACTOR,
             "Offer: share total amount invalid"
         );
 
+        // check ape coin cap
         uint256 maxCap = stakeManager.getCurrentApeCoinCap(DataTypes.BAYC_POOL_ID);
         if (apeOffer.collection == address(mayc)) {
             maxCap = stakeManager.getCurrentApeCoinCap(DataTypes.MAYC_POOL_ID);
         }
-
         require(apeOffer.coinAmount + coinOffer.coinAmount == maxCap, "Offer: ape coin total amount invalid");
 
         DataTypes.BakcStaked memory emptyBakcStaked;
@@ -200,8 +256,9 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         stakeManager.stake(apeStaked, bakcStaked, coinStaked);
     }
 
-    function _validateApeOffer(DataTypes.ApeOffer memory apeOffer, DataTypes.PoolType poolType) internal view {
+    function _validateApeOffer(DataTypes.ApeOffer memory apeOffer) internal view {
         require(apeOffer.staker != address(0), "Offer: invalid ape staker");
+        require(apeOffer.startTime <= block.timestamp, "Offer: ape offer not start");
         require(apeOffer.endTime >= block.timestamp, "Offer: ape offer expired");
         require(_validateOfferNonce(apeOffer.staker, apeOffer.nonce), "Offer: ape offer canceled");
 
@@ -209,8 +266,6 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
             apeOffer.collection == address(bayc) || apeOffer.collection == address(mayc),
             "Offer: not ape collection"
         );
-
-        require(apeOffer.poolType == poolType, "Offer: invalid pool type");
 
         IBNFT boundApe = _getBNFT(apeOffer.collection);
 
@@ -227,20 +282,10 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         );
     }
 
-    function _getBNFT(address apeNft) internal view returns (IBNFT) {
-        require(apeNft == address(bayc) || apeNft == address(mayc), "BendStakeMatcher: not ape collection");
-        if (apeNft == address(mayc)) {
-            return IBNFT(boundMayc);
-        }
-        return IBNFT(boundBayc);
-    }
-
-    function _validateBakcOffer(DataTypes.BakcOffer memory bakcOffer, bytes32 apeOfferKey) internal view {
+    function _validateBakcOffer(DataTypes.BakcOffer memory bakcOffer) internal view {
         require(bakcOffer.staker != address(0), "Offer: invalid bakc staker");
+        require(bakcOffer.startTime <= block.timestamp, "Offer: bakc offer not start");
         require(bakcOffer.endTime >= block.timestamp, "Offer: bakc offer expired");
-        if (apeOfferKey != bytes32(0)) {
-            require(bakcOffer.key == apeOfferKey, "Offer: bakc offer key mismatch");
-        }
         require(_validateOfferNonce(bakcOffer.staker, bakcOffer.nonce), "Offer: bakc offer expired");
 
         require(IERC721Upgradeable(bakc).ownerOf(bakcOffer.tokenId) == bakcOffer.staker, "Offer: not bakc owner");
@@ -251,18 +296,24 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         );
     }
 
-    function _validateCoinOffer(DataTypes.CoinOffer memory coinOffer, bytes32 apeOfferKey) internal view {
+    function _validateCoinOffer(DataTypes.CoinOffer memory coinOffer) internal view {
         require(coinOffer.staker != address(0), "Offer: invalid coin staker");
+        require(coinOffer.startTime <= block.timestamp, "Offer: coin offer not start");
         require(coinOffer.endTime >= block.timestamp, "Offer: coin offer expired");
-        if (apeOfferKey != bytes32(0)) {
-            require(coinOffer.key == apeOfferKey, "Offer: coin offer key mismatch");
-        }
         require(coinOffer.coinAmount > 0, "Offer: coin amount can't be 0");
         require(_validateOfferNonce(coinOffer.staker, coinOffer.nonce), "Offer: coin offer expired");
         require(
             _validateOfferSignature(coinOffer.staker, coinOffer.hash(), coinOffer.r, coinOffer.s, coinOffer.v),
             "Offer: invalid coin offer signature"
         );
+    }
+
+    function _getBNFT(address apeNft) internal view returns (IBNFT) {
+        require(apeNft == address(bayc) || apeNft == address(mayc), "BendStakeMatcher: not ape collection");
+        if (apeNft == address(mayc)) {
+            return IBNFT(boundMayc);
+        }
+        return IBNFT(boundBayc);
     }
 
     function _domainSeparatorV4() internal view returns (bytes32) {

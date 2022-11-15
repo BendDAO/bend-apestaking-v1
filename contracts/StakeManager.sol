@@ -286,13 +286,16 @@ contract StakeManager is
         // transfer nft and ape coin to proxy
         ape.safeTransferFrom(address(this), address(proxy), apeStaked.tokenId);
         uint256 coinAmount = apeStaked.coinAmount;
-        if (!bakcStaked.isNull()) {
+        if (bakcStaked.staker != address(0)) {
             require(bakc.ownerOf(bakcStaked.tokenId) == address(this), "StakeManager: not bakc owner");
             coinAmount += bakcStaked.coinAmount;
             bakc.safeTransferFrom(address(this), address(proxy), bakcStaked.tokenId);
+
+            // save staked proxy for bakc
+            _stakedProxies.add(address(bakc), bakcStaked.tokenId, address(proxy));
         }
 
-        if (!coinStaked.isNull()) {
+        if (coinStaked.staker != address(0)) {
             coinAmount += coinStaked.coinAmount;
         }
         apeCoin.safeTransfer(address(proxy), coinAmount);
@@ -303,14 +306,11 @@ contract StakeManager is
         // emit event
         emit Staked(address(proxy), apeStaked, bakcStaked, coinStaked);
 
-        // save storage
+        // save proxy
         proxies[proxy] = true;
 
+        // save staked proxy for ape
         _stakedProxies.add(apeStaked.collection, apeStaked.tokenId, address(proxy));
-
-        if (!bakcStaked.isNull()) {
-            _stakedProxies.add(address(bakc), bakcStaked.tokenId, address(proxy));
-        }
     }
 
     function _lock(
@@ -388,7 +388,7 @@ contract StakeManager is
         // check nft ownership
         require(ape.ownerOf(apeStaked.tokenId) == address(this), "StakeManager: not ape owner");
 
-        if (!bakcStaked.isNull()) {
+        if (bakcStaked.staker != address(0)) {
             // remove staked proxy for bakc
             _stakedProxies.remove(address(bakc), bakcStaked.tokenId, address(proxy));
         }

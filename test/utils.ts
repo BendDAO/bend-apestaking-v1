@@ -6,14 +6,12 @@ import fc from "fast-check";
 import { formatBytes32String } from "ethers/lib/utils";
 import { ethers } from "hardhat";
 import { Contracts, Env } from "./_setup";
-import { BigNumber, constants, Contract, utils } from "ethers";
+import { BigNumber, constants, Contract } from "ethers";
 import { advanceBlock, latest } from "./helpers/block-traveller";
 import { TypedDataDomain } from "@ethersproject/abstract-signer";
 import { DataTypes } from "../typechain-types/contracts/interfaces/IStakeMatcher";
 import { signTypedData } from "./helpers/signature-helper";
 import { findPrivateKey } from "./helpers/hardhat-keys";
-
-const { defaultAbiCoder, keccak256 } = utils;
 
 const NAME = "BendStakeMatcher";
 const VERSION = "1";
@@ -202,38 +200,27 @@ export const randomSingleStake = (env: Env, contracts: Contracts) => {
   );
 };
 
-export const apeOfferKey = (poolType: number, staker: string, apeCollection: string, tokenId: number) => {
-  const types = ["bytes32", "uint8", "address", "address", "uint256"];
-
-  const values = [
-    "0x9dfdf7723fed97fb48b5d51a04a654620e8fb4d60a29db3890541900b75776ee",
-    poolType,
-    staker,
-    apeCollection,
-    tokenId,
-  ];
-
-  return keccak256(defaultAbiCoder.encode(types, values));
-};
-
 const mapToOffer = (nowTime: number) => {
   return (t: any) => {
     const { apeStaked, bakcStaked, coinStaked, poolId, stakers } = t;
-    const poolType = poolId === 3 ? 2 : 1;
-    const key = apeOfferKey(poolType, apeStaked.staker, apeStaked.collection, apeStaked.tokenId);
     return {
       apeOffer: {
-        poolType,
-        endTime: nowTime + 3600 * 24,
+        poolId,
+        bakcOfferor: bakcStaked.staker,
+        coinOfferor: coinStaked.staker,
         ...apeStaked,
+        startTime: nowTime,
+        endTime: nowTime + 3600 * 24,
         nonce: constants.Zero,
         v: constants.Zero,
         r: emptyBytes32,
         s: emptyBytes32,
       },
       bakcOffer: {
-        key,
+        apeOfferor: apeStaked.staker,
+        coinOfferor: coinStaked.staker,
         ...bakcStaked,
+        startTime: nowTime,
         endTime: nowTime + 3600 * 24,
         nonce: constants.Zero,
         v: constants.Zero,
@@ -241,8 +228,11 @@ const mapToOffer = (nowTime: number) => {
         s: emptyBytes32,
       },
       coinOffer: {
-        key,
+        poolId,
+        apeOfferor: apeStaked.staker,
+        bakcOfferor: bakcStaked.staker,
         ...coinStaked,
+        startTime: nowTime,
         endTime: nowTime + 3600 * 24,
         nonce: constants.Zero,
         v: constants.Zero,
@@ -326,26 +316,32 @@ export const signApeOffer = async (
 ) => {
   const types = [
     "bytes32", // type hash
-    "uint8", // poolType
+    "uint8", // poolId
     "address", // staker
+    "address", // bakcOfferor
+    "address", // coinOfferor
     "address", // collection
     "uint256", // tokenId
     "uint256", // coinAmount
     "uint256", // apeShare
     "uint256", // coinShare
+    "uint256", // startTime
     "uint256", // endTime
     "uint256", // nonce
   ];
 
   const values = [
-    "0x5b64381119b32244dd6c5b918d0106988e84c1369594978f0d6d9abc28374990",
-    await apeOffer.poolType,
+    "0xb7d3c69840f0aefb7b2dbed60b1b0a38e496f984090fd63e1062b858cf8f9d42",
+    await apeOffer.poolId,
     await apeOffer.staker,
+    await apeOffer.bakcOfferor,
+    await apeOffer.coinOfferor,
     await apeOffer.collection,
     await apeOffer.tokenId,
     await apeOffer.coinAmount,
     await apeOffer.apeShare,
     await apeOffer.coinShare,
+    await apeOffer.startTime,
     await apeOffer.endTime,
     await apeOffer.nonce,
   ];
@@ -367,24 +363,28 @@ export const signBakcOffer = async (
 ) => {
   const types = [
     "bytes32", // type hash
-    "bytes32", // key
     "address", // staker
+    "address", // apeOfferor
+    "address", // coinOfferor
     "uint256", // tokenId
     "uint256", // coinAmount
     "uint256", // bakcShare
     "uint256", // coinShare
+    "uint256", // startTime
     "uint256", // endTime
     "uint256", // nonce
   ];
 
   const values = [
-    "0x938fe544838afb8000a58d722a79953db542abbbad1738bb81d25f4b0954580b",
-    await bakcOffer.key,
+    "0x8a57e391e2308c9863d1bea15470f712f6cde8ffe3c6599158eb77d8825607a2",
     await bakcOffer.staker,
+    await bakcOffer.apeOfferor,
+    await bakcOffer.coinOfferor,
     await bakcOffer.tokenId,
     await bakcOffer.coinAmount,
     await bakcOffer.bakcShare,
     await bakcOffer.coinShare,
+    await bakcOffer.startTime,
     await bakcOffer.endTime,
     await bakcOffer.nonce,
   ];
@@ -406,20 +406,26 @@ export const signCoinOffer = async (
 ) => {
   const types = [
     "bytes32", // type hash
-    "bytes32", // key
+    "uint8", // poolId
     "address", // staker
+    "address", // apeOfferor
+    "address", // bakcOfferor
     "uint256", // coinAmount
     "uint256", // coinShare
+    "uint256", // startTime
     "uint256", // endTime
     "uint256", // nonce
   ];
 
   const values = [
-    "0xc5a5eaf066880d4f397cea39a5e5e2680fcc254976483ff5c5a7235390c85a8e",
-    await coinOffer.key,
+    "0x26439f3b7e830b76148e78e58344956e3f4028df9c1420bedcf0aa8e7836dcd9",
+    await coinOffer.poolId,
     await coinOffer.staker,
+    await coinOffer.apeOfferor,
+    await coinOffer.bakcOfferor,
     await coinOffer.coinAmount,
     await coinOffer.coinShare,
+    await coinOffer.startTime,
     await coinOffer.endTime,
     await coinOffer.nonce,
   ];

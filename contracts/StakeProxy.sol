@@ -154,10 +154,10 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         }
 
         pendingWithdraw[_apeStaked.staker] += _apeStaked.coinAmount;
-        if (!_bakcStaked.isNull()) {
+        if (_bakcStaked.staker != address(0)) {
             pendingWithdraw[_bakcStaked.staker] += _bakcStaked.coinAmount;
         }
-        if (!_coinStaked.isNull()) {
+        if (_coinStaked.staker != address(0)) {
             pendingWithdraw[_coinStaked.staker] += _coinStaked.coinAmount;
         }
         // withdraw from ape staking will receive staked principal and rewards
@@ -182,7 +182,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
             IERC721(apeStaked_.collection).ownerOf(apeStaked_.tokenId) == address(this),
             "StakeProxy: not ape owner"
         );
-        if (!bakcStaked_.isNull()) {
+        if (bakcStaked_.staker != address(0)) {
             require(bakc.ownerOf(bakcStaked_.tokenId) == address(this), "StakeProxy: not bakc owner");
 
             if (apeStaked_.collection == address(bayc)) {
@@ -281,7 +281,6 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
         if (
             (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) && // must be paired type
-            (!_bakcStaked.isNull()) && // must be paired type
             staker == _bakcStaked.staker && // staker must be bakc staker
             bakc.ownerOf(_bakcStaked.tokenId) == address(this) // bakc must not withdrawn
         ) {
@@ -383,10 +382,10 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
     function _totalStaked() internal view returns (uint256 coinAmount) {
         coinAmount = _apeStaked.coinAmount;
-        if (!_bakcStaked.isNull()) {
+        if (_bakcStaked.coinAmount > 0) {
             coinAmount += _bakcStaked.coinAmount;
         }
-        if (!_coinStaked.isNull()) {
+        if (_coinStaked.coinAmount > 0) {
             coinAmount += _coinStaked.coinAmount;
         }
     }
