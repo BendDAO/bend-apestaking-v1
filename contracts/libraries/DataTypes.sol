@@ -17,7 +17,7 @@ library DataTypes {
         );
 
     bytes32 internal constant APE_OFFER_KEY =
-        keccak256("ApeOffer(uint8 poolType,address staker,address collection,uint256 tokenId)");
+        keccak256("ApeKey(uint8 poolType,address staker,address collection,uint256 tokenId)");
 
     bytes32 internal constant BAKC_OFFER_HASH =
         keccak256(

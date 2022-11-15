@@ -305,7 +305,9 @@ contract StakeManager is
 
         // save storage
         proxies[proxy] = true;
+
         _stakedProxies.add(apeStaked.collection, apeStaked.tokenId, address(proxy));
+
         if (!bakcStaked.isNull()) {
             _stakedProxies.add(address(bakc), bakcStaked.tokenId, address(proxy));
         }

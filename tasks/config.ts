@@ -38,7 +38,7 @@ export const FEE: Params<string> = {
 };
 
 export const FEE_RECIPIENT: Params<string> = {
-  [Network.goerli]: "",
+  [Network.goerli]: "0xcbb8a164d498e0c2312F0DDcF0a6Ee2F5bad983A",
   [Network.mainnet]: "",
 };
 

@@ -213,6 +213,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         require(apeOffer.poolType == poolType, "Offer: invalid pool type");
 
         IBNFT boundApe = _getBNFT(apeOffer.collection);
+
         // should be ape or bound ape owner
         require(
             IERC721Upgradeable(apeOffer.collection).ownerOf(apeOffer.tokenId) == apeOffer.staker ||

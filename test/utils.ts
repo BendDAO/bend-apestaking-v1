@@ -206,7 +206,7 @@ export const apeOfferKey = (poolType: number, staker: string, apeCollection: str
   const types = ["bytes32", "uint8", "address", "address", "uint256"];
 
   const values = [
-    "0x7d5a34ba56aedaf114064e21089a3ec67d4991566ba60265078ad06057683fbe",
+    "0x9dfdf7723fed97fb48b5d51a04a654620e8fb4d60a29db3890541900b75776ee",
     poolType,
     staker,
     apeCollection,
