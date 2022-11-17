@@ -206,20 +206,18 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     expect(await apeStaked.staker).to.eq(apeStakedStorage.staker);
     expect(await apeStaked.collection).to.eq(apeStakedStorage.collection);
     expect(await apeStaked.tokenId).to.eq(apeStakedStorage.tokenId);
-    expect(await apeStaked.apeShare).to.eq(apeStakedStorage.apeShare);
-    expect(await apeStaked.coinShare).to.eq(apeStakedStorage.coinShare);
+    expect(await apeStaked.share).to.eq(apeStakedStorage.share);
     expect(await apeStaked.coinAmount).to.eq(apeStakedStorage.coinAmount);
 
     expect(await bakcStaked.offerHash).to.eq(bakcStakedStorage.offerHash);
     expect(await bakcStaked.staker).to.eq(bakcStakedStorage.staker);
     expect(await bakcStaked.tokenId).to.eq(bakcStakedStorage.tokenId);
-    expect(await bakcStaked.bakcShare).to.eq(bakcStakedStorage.bakcShare);
-    expect(await bakcStaked.coinShare).to.eq(bakcStakedStorage.coinShare);
+    expect(await bakcStaked.share).to.eq(bakcStakedStorage.share);
     expect(await bakcStaked.coinAmount).to.eq(bakcStakedStorage.coinAmount);
 
     expect(await coinStaked.offerHash).to.eq(coinStakedStorage.offerHash);
     expect(await coinStaked.staker).to.eq(coinStakedStorage.staker);
-    expect(await coinStaked.coinShare).to.eq(coinStakedStorage.coinShare);
+    expect(await coinStaked.share).to.eq(coinStakedStorage.share);
     expect(await coinStaked.coinAmount).to.eq(coinStakedStorage.coinAmount);
 
     // check bnft interceptor and flashloan locking

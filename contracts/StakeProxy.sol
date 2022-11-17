@@ -27,8 +27,6 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
     uint256 public override version = 1;
 
-    uint8 private constant PRECISION = 10;
-
     mapping(address => uint256) public pendingRewards;
     mapping(address => uint256) public pendingWithdraw;
 
@@ -321,22 +319,9 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         )
     {
         if (rewardsAmount > 0) {
-            uint256 maxCap = _totalStaked();
-            apeRewards = rewardsAmount.percentMul(_apeStaked.apeShare);
-            bakcRewards = rewardsAmount.percentMul(_bakcStaked.bakcShare);
+            apeRewards = rewardsAmount.percentMul(_apeStaked.share);
+            bakcRewards = rewardsAmount.percentMul(_bakcStaked.share);
             coinRewards = rewardsAmount - apeRewards - bakcRewards;
-
-            if (_apeStaked.coinAmount > 0) {
-                uint256 coinSharedRewards = (coinRewards * (_apeStaked.coinAmount * 10**10)) / maxCap / 10**10;
-
-                apeRewards += coinSharedRewards;
-                coinRewards -= coinSharedRewards;
-            }
-            if (_bakcStaked.coinAmount > 0) {
-                uint256 coinSharedRewards = (coinRewards * (_bakcStaked.coinAmount * 10**10)) / maxCap / 10**10;
-                bakcRewards += coinSharedRewards;
-                coinRewards -= coinSharedRewards;
-            }
         }
     }
 

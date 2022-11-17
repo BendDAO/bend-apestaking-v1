@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { task } from "hardhat/config";
 import { IStakeManager } from "../typechain-types";
 import {
@@ -22,6 +23,7 @@ import {
   getDeploySigner,
   waitForTx,
 } from "./utils/helpers";
+import { verifyEtherscanContract } from "./utils/verification";
 
 task("deploy:full", "Deploy all contracts").setAction(async (_, { run }) => {
   await run("set-DRE");
@@ -98,3 +100,24 @@ task("deploy:Config", "Config Contracts").setAction(async (_, { network, run }) 
   await waitForTx(await stakeManager.connect(deployer).updateFee(fee));
   await waitForTx(await stakeManager.connect(deployer).updateFeeRecipient(feeRecipient));
 });
+
+task("upgrade", "upgrade contract")
+  .addParam("proxyid", "The proxy contract id")
+  .addOptionalParam("implid", "The new impl contract id")
+  .addOptionalParam("skipcheck", "Skip upgrade storage check or not")
+  .setAction(async ({ skipcheck, proxyid, implid }, { ethers, upgrades, run }) => {
+    await run("set-DRE");
+    await run("compile");
+    if (!implid) {
+      implid = proxyid;
+    }
+    const proxyAddress = await getContractAddressFromDB(proxyid);
+    const upgradeable = await ethers.getContractFactory(implid);
+    console.log(`Preparing upgrade proxy ${proxyid}: ${proxyAddress} with new ${implid}`);
+    // @ts-ignore
+    const upgraded = await upgrades.upgradeProxy(proxyAddress, upgradeable, { unsafeSkipStorageCheck: !!skipcheck });
+    await upgraded.deployed();
+    const implAddress = await upgrades.erc1967.getImplementationAddress(upgraded.address);
+    console.log("New implmentation at: ", implAddress);
+    await verifyEtherscanContract(implAddress, []);
+  });

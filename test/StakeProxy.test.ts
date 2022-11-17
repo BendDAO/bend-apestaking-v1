@@ -69,32 +69,15 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   };
 
   const computeRewards = async (totalRewards: BigNumber, param: any) => {
-    const maxCap = BigNumber.from(await param.apeStaked.coinAmount)
-      .add(await param.bakcStaked.coinAmount)
-      .add(await param.coinStaked.coinAmount);
-    let apeRewards = totalRewards
-      .mul(await param.apeStaked.apeShare)
+    const apeRewards = totalRewards
+      .mul(await param.apeStaked.share)
       .add(5000)
       .div(10000);
-    let bakcRewards = totalRewards
-      .mul(await param.bakcStaked.bakcShare)
+    const bakcRewards = totalRewards
+      .mul(await param.bakcStaked.share)
       .add(5000)
       .div(10000);
-    let coinRewards = totalRewards.sub(apeRewards).sub(bakcRewards);
-    let coinRewardsShared = coinRewards
-      .mul(await param.apeStaked.coinAmount)
-      .mul(10 ** 10)
-      .div(maxCap)
-      .div(10 ** 10);
-    apeRewards = apeRewards.add(coinRewardsShared);
-    coinRewards = coinRewards.sub(coinRewardsShared);
-    coinRewardsShared = coinRewards
-      .mul(await param.bakcStaked.coinAmount)
-      .mul(10 ** 10)
-      .div(maxCap)
-      .div(10 ** 10);
-    bakcRewards = bakcRewards.add(coinRewardsShared);
-    coinRewards = coinRewards.sub(coinRewardsShared);
+    const coinRewards = totalRewards.sub(apeRewards).sub(bakcRewards);
 
     const stakerRewards = new Map<string, BigNumber>();
 
@@ -355,20 +338,18 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
           expect(apeStakedStorage.staker).to.eq(constants.AddressZero);
           expect(apeStakedStorage.collection).to.eq(constants.AddressZero);
           expect(apeStakedStorage.tokenId).to.eq(constants.Zero);
-          expect(apeStakedStorage.apeShare).to.eq(constants.Zero);
-          expect(apeStakedStorage.coinShare).to.eq(constants.Zero);
+          expect(apeStakedStorage.share).to.eq(constants.Zero);
           expect(apeStakedStorage.coinAmount).to.eq(constants.Zero);
 
           expect(bakcStakedStorage.offerHash).to.eq(emptyBytes32);
           expect(bakcStakedStorage.staker).to.eq(constants.AddressZero);
           expect(bakcStakedStorage.tokenId).to.eq(constants.Zero);
-          expect(bakcStakedStorage.bakcShare).to.eq(constants.Zero);
-          expect(bakcStakedStorage.coinShare).to.eq(constants.Zero);
+          expect(bakcStakedStorage.share).to.eq(constants.Zero);
           expect(bakcStakedStorage.coinAmount).to.eq(constants.Zero);
 
           expect(coinStakedStorage.offerHash).to.eq(emptyBytes32);
           expect(coinStakedStorage.staker).to.eq(constants.AddressZero);
-          expect(coinStakedStorage.coinShare).to.eq(constants.Zero);
+          expect(coinStakedStorage.share).to.eq(constants.Zero);
           expect(coinStakedStorage.coinAmount).to.eq(constants.Zero);
 
           await stake(param);
@@ -404,20 +385,18 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
           expect(apeStaked.staker).to.eq(apeStakedStorage.staker);
           expect(apeStaked.collection).to.eq(apeStakedStorage.collection);
           expect(apeStaked.tokenId).to.eq(apeStakedStorage.tokenId);
-          expect(apeStaked.apeShare).to.eq(apeStakedStorage.apeShare);
-          expect(apeStaked.coinShare).to.eq(apeStakedStorage.coinShare);
+          expect(apeStaked.share).to.eq(apeStakedStorage.share);
           expect(apeStaked.coinAmount).to.eq(apeStakedStorage.coinAmount);
 
           expect(bakcStaked.offerHash).to.eq(bakcStakedStorage.offerHash);
           expect(bakcStaked.staker).to.eq(bakcStakedStorage.staker);
           expect(bakcStaked.tokenId).to.eq(bakcStakedStorage.tokenId);
-          expect(bakcStaked.bakcShare).to.eq(bakcStakedStorage.bakcShare);
-          expect(bakcStaked.coinShare).to.eq(bakcStakedStorage.coinShare);
+          expect(bakcStaked.share).to.eq(bakcStakedStorage.share);
           expect(bakcStaked.coinAmount).to.eq(bakcStakedStorage.coinAmount);
 
           expect(coinStaked.offerHash).to.eq(coinStakedStorage.offerHash);
           expect(coinStaked.staker).to.eq(coinStakedStorage.staker);
-          expect(coinStaked.coinShare).to.eq(coinStakedStorage.coinShare);
+          expect(coinStaked.share).to.eq(coinStakedStorage.share);
           expect(coinStaked.coinAmount).to.eq(coinStakedStorage.coinAmount);
 
           expect(await contracts.apeCoin.balanceOf(contracts.stakeProxy.address)).to.be.eq(constants.Zero);

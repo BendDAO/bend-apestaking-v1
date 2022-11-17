@@ -58,22 +58,20 @@ export const randomApeBakcCoin = (env: Env, contracts: Contracts, maxCap: number
         collection: _ape,
         tokenId: 100,
         coinAmount: makeBN18(_coins[0]),
-        apeShare: _shares[0],
-        coinShare: _shares[2],
+        share: _shares[0],
       },
       bakcStaked: {
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[1]].address,
         tokenId: 100,
         coinAmount: makeBN18(_coins[1]),
-        bakcShare: _shares[1],
-        coinShare: _shares[2],
+        share: _shares[1],
       },
       coinStaked: {
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[2]].address,
         coinAmount: makeBN18(_coins[2]),
-        coinShare: _shares[2],
+        share: _shares[2],
       },
       poolId: 3,
       stakers: new Set<string>([
@@ -87,8 +85,8 @@ export const randomApeBakcCoin = (env: Env, contracts: Contracts, maxCap: number
 
 export const randomApeAndBakc = (env: Env, contracts: Contracts, maxCap: number) => {
   const shares = fc
-    .array(fc.integer({ min: 100, max: 10000 }), { minLength: 3, maxLength: 3 })
-    .filter((t) => t[0] + t[1] + t[2] === 10000);
+    .array(fc.integer({ min: 100, max: 10000 }), { minLength: 2, maxLength: 2 })
+    .filter((t) => t[0] + t[1] === 10000);
   const stakers = fc.array(fc.integer({ min: 1, max: 5 }), {
     minLength: 2,
     maxLength: 2,
@@ -108,22 +106,20 @@ export const randomApeAndBakc = (env: Env, contracts: Contracts, maxCap: number)
         collection: _ape,
         tokenId: 100,
         coinAmount: makeBN18(_coins[0]),
-        apeShare: _shares[0],
-        coinShare: _shares[2],
+        share: _shares[0],
       },
       bakcStaked: {
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[1]].address,
         tokenId: 100,
         coinAmount: makeBN18(_coins[1]),
-        bakcShare: _shares[1],
-        coinShare: _shares[2],
+        share: _shares[1],
       },
       coinStaked: {
         offerHash: emptyBytes32,
         staker: constants.AddressZero,
         coinAmount: constants.Zero,
-        coinShare: constants.Zero,
+        share: constants.Zero,
       },
       poolId: 3,
       stakers: new Set<string>([env.accounts[_stakers[0]].address, env.accounts[_stakers[1]].address]),
@@ -135,6 +131,7 @@ export const randomApeAndCoin = (env: Env, contracts: Contracts, maxCap: number,
   const shares = fc
     .array(fc.integer({ min: 1, max: 10000 }), { minLength: 2, maxLength: 2 })
     .filter((t) => t[0] + t[1] === 10000);
+
   const stakers = fc.array(fc.integer({ min: 1, max: 5 }), {
     minLength: 2,
     maxLength: 2,
@@ -157,22 +154,20 @@ export const randomApeAndCoin = (env: Env, contracts: Contracts, maxCap: number,
         collection: ape,
         tokenId: 100,
         coinAmount: makeBN18(_coins[0]),
-        apeShare: _shares[0],
-        coinShare: _shares[1],
+        share: _shares[0],
       },
       bakcStaked: {
         offerHash: emptyBytes32,
         staker: constants.AddressZero,
         tokenId: 0,
         coinAmount: constants.Zero,
-        bakcShare: constants.Zero,
-        coinShare: constants.Zero,
+        share: constants.Zero,
       },
       coinStaked: {
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[1]].address,
         coinAmount: makeBN18(_coins[1]),
-        coinShare: _shares[1],
+        share: _shares[1],
       },
       poolId,
       stakers: new Set<string>([env.accounts[_stakers[0]].address, env.accounts[_stakers[1]].address]),
@@ -206,8 +201,8 @@ const mapToOffer = (nowTime: number) => {
     return {
       apeOffer: {
         poolId,
-        bakcOfferor: bakcStaked.staker,
-        coinOfferor: coinStaked.staker,
+        bakcOfferee: bakcStaked.staker,
+        coinOfferee: coinStaked.staker,
         ...apeStaked,
         startTime: nowTime,
         endTime: nowTime + 3600 * 24,
@@ -217,8 +212,8 @@ const mapToOffer = (nowTime: number) => {
         s: emptyBytes32,
       },
       bakcOffer: {
-        apeOfferor: apeStaked.staker,
-        coinOfferor: coinStaked.staker,
+        apeOfferee: apeStaked.staker,
+        coinOfferee: coinStaked.staker,
         ...bakcStaked,
         startTime: nowTime,
         endTime: nowTime + 3600 * 24,
@@ -229,8 +224,8 @@ const mapToOffer = (nowTime: number) => {
       },
       coinOffer: {
         poolId,
-        apeOfferor: apeStaked.staker,
-        bakcOfferor: bakcStaked.staker,
+        apeOfferee: apeStaked.staker,
+        bakcOfferee: bakcStaked.staker,
         ...coinStaked,
         startTime: nowTime,
         endTime: nowTime + 3600 * 24,
@@ -318,29 +313,27 @@ export const signApeOffer = async (
     "bytes32", // type hash
     "uint8", // poolId
     "address", // staker
-    "address", // bakcOfferor
-    "address", // coinOfferor
+    "address", // bakcOfferee
+    "address", // coinOfferee
     "address", // collection
     "uint256", // tokenId
     "uint256", // coinAmount
-    "uint256", // apeShare
-    "uint256", // coinShare
+    "uint256", // share
     "uint256", // startTime
     "uint256", // endTime
     "uint256", // nonce
   ];
 
   const values = [
-    "0xb7d3c69840f0aefb7b2dbed60b1b0a38e496f984090fd63e1062b858cf8f9d42",
+    "0x0d25ac8a2eb3886bb519915926ca9aad501599e935bca3ba360313f89fd84c1f",
     await apeOffer.poolId,
     await apeOffer.staker,
-    await apeOffer.bakcOfferor,
-    await apeOffer.coinOfferor,
+    await apeOffer.bakcOfferee,
+    await apeOffer.coinOfferee,
     await apeOffer.collection,
     await apeOffer.tokenId,
     await apeOffer.coinAmount,
-    await apeOffer.apeShare,
-    await apeOffer.coinShare,
+    await apeOffer.share,
     await apeOffer.startTime,
     await apeOffer.endTime,
     await apeOffer.nonce,
@@ -364,26 +357,24 @@ export const signBakcOffer = async (
   const types = [
     "bytes32", // type hash
     "address", // staker
-    "address", // apeOfferor
-    "address", // coinOfferor
+    "address", // apeOfferee
+    "address", // coinOfferee
     "uint256", // tokenId
     "uint256", // coinAmount
-    "uint256", // bakcShare
-    "uint256", // coinShare
+    "uint256", // share
     "uint256", // startTime
     "uint256", // endTime
     "uint256", // nonce
   ];
 
   const values = [
-    "0x8a57e391e2308c9863d1bea15470f712f6cde8ffe3c6599158eb77d8825607a2",
+    "0x7663fdea75f14fe999486aacbb9f2cc2a805c44d01ddfd827ac5b1529d848a24",
     await bakcOffer.staker,
-    await bakcOffer.apeOfferor,
-    await bakcOffer.coinOfferor,
+    await bakcOffer.apeOfferee,
+    await bakcOffer.coinOfferee,
     await bakcOffer.tokenId,
     await bakcOffer.coinAmount,
-    await bakcOffer.bakcShare,
-    await bakcOffer.coinShare,
+    await bakcOffer.share,
     await bakcOffer.startTime,
     await bakcOffer.endTime,
     await bakcOffer.nonce,
@@ -408,23 +399,23 @@ export const signCoinOffer = async (
     "bytes32", // type hash
     "uint8", // poolId
     "address", // staker
-    "address", // apeOfferor
-    "address", // bakcOfferor
+    "address", // apeOfferee
+    "address", // bakcOfferee
     "uint256", // coinAmount
-    "uint256", // coinShare
+    "uint256", // share
     "uint256", // startTime
     "uint256", // endTime
     "uint256", // nonce
   ];
 
   const values = [
-    "0x26439f3b7e830b76148e78e58344956e3f4028df9c1420bedcf0aa8e7836dcd9",
+    "0x1ee48a7f548126fdd0125dc5358eb4a17d8698a0e540c58f3f1dbdebc802e653",
     await coinOffer.poolId,
     await coinOffer.staker,
-    await coinOffer.apeOfferor,
-    await coinOffer.bakcOfferor,
+    await coinOffer.apeOfferee,
+    await coinOffer.bakcOfferee,
     await coinOffer.coinAmount,
-    await coinOffer.coinShare,
+    await coinOffer.share,
     await coinOffer.startTime,
     await coinOffer.endTime,
     await coinOffer.nonce,

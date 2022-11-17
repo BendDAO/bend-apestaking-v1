@@ -8,29 +8,28 @@ library DataTypes {
 
     bytes32 internal constant APE_OFFER_HASH =
         keccak256(
-            "ApeOffer(uint8 poolId,address staker,address bakcOfferor,address coinOfferor,address collection,uint256 tokenId,uint256 coinAmount,uint256 apeShare,uint256 coinShare,uint256 startTime,uint256 endTime,uint256 nonce)"
+            "ApeOffer(uint8 poolId,address staker,address bakcOfferee,address coinOfferee,address collection,uint256 tokenId,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
         );
 
     bytes32 internal constant BAKC_OFFER_HASH =
         keccak256(
-            "BakcOffer(address staker,address apeOfferor,address coinOfferor,uint256 tokenId,uint256 coinAmount,uint256 bakcShare,uint256 coinShare,uint256 startTime,uint256 endTime,uint256 nonce)"
+            "BakcOffer(address staker,address apeOfferee,address coinOfferee,uint256 tokenId,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
         );
 
     bytes32 internal constant COIN_OFFER_HASH =
         keccak256(
-            "CoinOffer(address staker,address apeOfferor,address bakcOfferor,uint256 coinAmount,uint256 coinShare,uint256 startTime,uint256 endTime,uint256 nonce)"
+            "CoinOffer(address staker,address apeOfferee,address bakcOfferee,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
         );
 
     struct ApeOffer {
         uint8 poolId;
         address staker;
-        address bakcOfferor;
-        address coinOfferor;
+        address bakcOfferee;
+        address coinOfferee;
         address collection;
         uint256 tokenId;
         uint256 coinAmount;
-        uint256 apeShare;
-        uint256 coinShare;
+        uint256 share;
         uint256 startTime;
         uint256 endTime;
         uint256 nonce;
@@ -45,18 +44,16 @@ library DataTypes {
         address collection;
         uint256 tokenId;
         uint256 coinAmount;
-        uint256 apeShare;
-        uint256 coinShare;
+        uint256 share;
     }
 
     struct BakcOffer {
         address staker;
-        address apeOfferor;
-        address coinOfferor;
+        address apeOfferee;
+        address coinOfferee;
         uint256 tokenId;
         uint256 coinAmount;
-        uint256 bakcShare;
-        uint256 coinShare;
+        uint256 share;
         uint256 startTime;
         uint256 endTime;
         uint256 nonce;
@@ -70,17 +67,16 @@ library DataTypes {
         address staker;
         uint256 tokenId;
         uint256 coinAmount;
-        uint256 bakcShare;
-        uint256 coinShare;
+        uint256 share;
     }
 
     struct CoinOffer {
         uint8 poolId;
         address staker;
-        address apeOfferor;
-        address bakcOfferor;
+        address apeOfferee;
+        address bakcOfferee;
         uint256 coinAmount;
-        uint256 coinShare;
+        uint256 share;
         uint256 startTime;
         uint256 endTime;
         uint256 nonce;
@@ -93,7 +89,7 @@ library DataTypes {
         bytes32 offerHash;
         address staker;
         uint256 coinAmount;
-        uint256 coinShare;
+        uint256 share;
     }
 
     function hash(ApeOffer memory apeOffer) internal pure returns (bytes32) {
@@ -103,13 +99,12 @@ library DataTypes {
                     APE_OFFER_HASH,
                     apeOffer.poolId,
                     apeOffer.staker,
-                    apeOffer.bakcOfferor,
-                    apeOffer.coinOfferor,
+                    apeOffer.bakcOfferee,
+                    apeOffer.coinOfferee,
                     apeOffer.collection,
                     apeOffer.tokenId,
                     apeOffer.coinAmount,
-                    apeOffer.apeShare,
-                    apeOffer.coinShare,
+                    apeOffer.share,
                     apeOffer.startTime,
                     apeOffer.endTime,
                     apeOffer.nonce
@@ -123,12 +118,11 @@ library DataTypes {
                 abi.encode(
                     BAKC_OFFER_HASH,
                     bakcOffer.staker,
-                    bakcOffer.apeOfferor,
-                    bakcOffer.coinOfferor,
+                    bakcOffer.apeOfferee,
+                    bakcOffer.coinOfferee,
                     bakcOffer.tokenId,
                     bakcOffer.coinAmount,
-                    bakcOffer.bakcShare,
-                    bakcOffer.coinShare,
+                    bakcOffer.share,
                     bakcOffer.startTime,
                     bakcOffer.endTime,
                     bakcOffer.nonce
@@ -143,10 +137,10 @@ library DataTypes {
                     COIN_OFFER_HASH,
                     coinOffer.poolId,
                     coinOffer.staker,
-                    coinOffer.apeOfferor,
-                    coinOffer.bakcOfferor,
+                    coinOffer.apeOfferee,
+                    coinOffer.bakcOfferee,
                     coinOffer.coinAmount,
-                    coinOffer.coinShare,
+                    coinOffer.share,
                     coinOffer.startTime,
                     coinOffer.endTime,
                     coinOffer.nonce
@@ -160,8 +154,7 @@ library DataTypes {
         apeStaked.collection = apeOffer.collection;
         apeStaked.tokenId = apeOffer.tokenId;
         apeStaked.coinAmount = apeOffer.coinAmount;
-        apeStaked.apeShare = apeStaked.apeShare;
-        apeStaked.coinShare = apeStaked.coinShare;
+        apeStaked.share = apeStaked.share;
     }
 
     function toStaked(BakcOffer memory bakcOffer) internal pure returns (BakcStaked memory bakcStaked) {
@@ -169,14 +162,13 @@ library DataTypes {
         bakcStaked.staker = bakcOffer.staker;
         bakcStaked.tokenId = bakcOffer.tokenId;
         bakcStaked.coinAmount = bakcOffer.coinAmount;
-        bakcStaked.bakcShare = bakcOffer.bakcShare;
-        bakcStaked.coinShare = bakcOffer.coinShare;
+        bakcStaked.share = bakcOffer.share;
     }
 
     function toStaked(CoinOffer memory coinOffer) internal pure returns (CoinStaked memory coinStaked) {
         coinStaked.offerHash = hash(coinOffer);
         coinStaked.staker = coinOffer.staker;
         coinStaked.coinAmount = coinOffer.coinAmount;
-        coinStaked.coinShare = coinOffer.coinShare;
+        coinStaked.share = coinOffer.share;
     }
 }

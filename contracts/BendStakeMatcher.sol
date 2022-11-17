@@ -107,33 +107,29 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
             "Offer: invalid pool id"
         );
 
-        // check offerors
-        if (apeOffer.bakcOfferor != address(0)) {
-            require(apeOffer.bakcOfferor == bakcOffer.staker, "ApeOffer: bakc offeror mismatch");
+        // check offerees
+        if (apeOffer.bakcOfferee != address(0)) {
+            require(apeOffer.bakcOfferee == bakcOffer.staker, "ApeOffer: bakc offeree mismatch");
         }
-        if (apeOffer.coinOfferor != address(0)) {
-            require(apeOffer.coinOfferor == coinOffer.staker, "ApeOffer: coin offeror mismatch");
+        if (apeOffer.coinOfferee != address(0)) {
+            require(apeOffer.coinOfferee == coinOffer.staker, "ApeOffer: coin offeree mismatch");
         }
-        if (bakcOffer.apeOfferor != address(0)) {
-            require(bakcOffer.apeOfferor == apeOffer.staker, "BakcOffer: ape offeror mismatch");
+        if (bakcOffer.apeOfferee != address(0)) {
+            require(bakcOffer.apeOfferee == apeOffer.staker, "BakcOffer: ape offeree mismatch");
         }
-        if (bakcOffer.coinOfferor != address(0)) {
-            require(bakcOffer.coinOfferor == coinOffer.staker, "BakcOffer: coin offeror mismatch");
+        if (bakcOffer.coinOfferee != address(0)) {
+            require(bakcOffer.coinOfferee == coinOffer.staker, "BakcOffer: coin offeree mismatch");
         }
-        if (coinOffer.apeOfferor != address(0)) {
-            require(coinOffer.apeOfferor == apeOffer.staker, "CoinOffer: ape offeror mismatch");
+        if (coinOffer.apeOfferee != address(0)) {
+            require(coinOffer.apeOfferee == apeOffer.staker, "CoinOffer: ape offeree mismatch");
         }
-        if (coinOffer.bakcOfferor != address(0)) {
-            require(coinOffer.bakcOfferor == bakcOffer.staker, "CoinOffer: bakc offeror mismatch");
+        if (coinOffer.bakcOfferee != address(0)) {
+            require(coinOffer.bakcOfferee == bakcOffer.staker, "CoinOffer: bakc offeree mismatch");
         }
 
         // check shares
         require(
-            apeOffer.coinShare == bakcOffer.coinShare && apeOffer.coinShare == coinOffer.coinShare,
-            "Offer: coin share mismatch"
-        );
-        require(
-            apeOffer.apeShare + bakcOffer.bakcShare + coinOffer.coinShare == PercentageMath.PERCENTAGE_FACTOR,
+            apeOffer.share + bakcOffer.share + coinOffer.share == PercentageMath.PERCENTAGE_FACTOR,
             "Offer: share total amount invalid"
         );
 
@@ -158,18 +154,17 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         // check pool id
         require(apeOffer.poolId == DataTypes.BAKC_POOL_ID, "Offer: invalid pool id");
 
-        // check offerors
-        if (apeOffer.bakcOfferor != address(0)) {
-            require(apeOffer.bakcOfferor == bakcOffer.staker, "ApeOffer: bakc offeror mismatch");
+        // check offerees
+        if (apeOffer.bakcOfferee != address(0)) {
+            require(apeOffer.bakcOfferee == bakcOffer.staker, "ApeOffer: bakc offeree mismatch");
         }
-        if (bakcOffer.apeOfferor != address(0)) {
-            require(bakcOffer.apeOfferor == apeOffer.staker, "BakcOffer: ape offeror mismatch");
+        if (bakcOffer.apeOfferee != address(0)) {
+            require(bakcOffer.apeOfferee == apeOffer.staker, "BakcOffer: ape offeree mismatch");
         }
 
         // check shares
-        require(apeOffer.coinShare == bakcOffer.coinShare, "Offer: invalid bakc offer");
         require(
-            apeOffer.apeShare + bakcOffer.bakcShare + apeOffer.coinShare == PercentageMath.PERCENTAGE_FACTOR,
+            apeOffer.share + bakcOffer.share == PercentageMath.PERCENTAGE_FACTOR,
             "Offer: share total amount invalid"
         );
 
@@ -201,18 +196,17 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         );
         require(apeOffer.poolId == coinOffer.poolId, "Offer: pool id mismatch");
 
-        // check offerors
-        if (apeOffer.coinOfferor != address(0)) {
-            require(apeOffer.coinOfferor == coinOffer.staker, "ApeOffer: coin offeror mismatch");
+        // check offerees
+        if (apeOffer.coinOfferee != address(0)) {
+            require(apeOffer.coinOfferee == coinOffer.staker, "ApeOffer: coin offeree mismatch");
         }
-        if (coinOffer.apeOfferor != address(0)) {
-            require(coinOffer.apeOfferor == apeOffer.staker, "CoinOffer: ape offeror mismatch");
+        if (coinOffer.apeOfferee != address(0)) {
+            require(coinOffer.apeOfferee == apeOffer.staker, "CoinOffer: ape offeree mismatch");
         }
 
         // check shares
-        require(apeOffer.coinShare == coinOffer.coinShare, "Offer: invalid coin offer");
         require(
-            apeOffer.apeShare + coinOffer.coinShare == PercentageMath.PERCENTAGE_FACTOR,
+            apeOffer.share + coinOffer.share == PercentageMath.PERCENTAGE_FACTOR,
             "Offer: share total amount invalid"
         );
 
