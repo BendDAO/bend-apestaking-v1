@@ -18,7 +18,7 @@ library DataTypes {
 
     bytes32 internal constant COIN_OFFER_HASH =
         keccak256(
-            "CoinOffer(address staker,address apeOfferee,address bakcOfferee,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
+            "CoinOffer(uint8 poolId,address staker,address apeOfferee,address bakcOfferee,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
         );
 
     struct ApeOffer {

@@ -495,7 +495,7 @@ export const hashCoinOffer = async (coinOffer: DataTypes.CoinOfferStruct) => {
   ];
 
   const values = [
-    "0x1ee48a7f548126fdd0125dc5358eb4a17d8698a0e540c58f3f1dbdebc802e653",
+    "0x650f4acd513f723e21669d7b7ffc891283a36a461f7470efec73d6b766c1bf9f",
     await coinOffer.poolId,
     await coinOffer.staker,
     await coinOffer.apeOfferee,
@@ -530,7 +530,7 @@ export const _signCoinOffer = async (
   ];
 
   const values = [
-    "0x1ee48a7f548126fdd0125dc5358eb4a17d8698a0e540c58f3f1dbdebc802e653",
+    "0x650f4acd513f723e21669d7b7ffc891283a36a461f7470efec73d6b766c1bf9f",
     await coinOffer.poolId,
     await coinOffer.staker,
     await coinOffer.apeOfferee,
