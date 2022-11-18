@@ -154,7 +154,7 @@ library DataTypes {
         apeStaked.collection = apeOffer.collection;
         apeStaked.tokenId = apeOffer.tokenId;
         apeStaked.coinAmount = apeOffer.coinAmount;
-        apeStaked.share = apeStaked.share;
+        apeStaked.share = apeOffer.share;
     }
 
     function toStaked(BakcOffer memory bakcOffer) internal pure returns (BakcStaked memory bakcStaked) {

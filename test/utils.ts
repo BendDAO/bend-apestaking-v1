@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import fc from "fast-check";
-import { formatBytes32String } from "ethers/lib/utils";
+import { defaultAbiCoder, formatBytes32String, keccak256 } from "ethers/lib/utils";
 import { ethers } from "hardhat";
 import { Contracts, Env } from "./_setup";
 import { BigNumber, constants, Contract } from "ethers";
@@ -309,6 +309,15 @@ export const signApeOffer = async (
   privateKey: string,
   apeOffer: DataTypes.ApeOfferStruct
 ) => {
+  return await _signApeOffer(env.chainId, contracts.stakeMatcher.address, privateKey, apeOffer);
+};
+
+export const _signApeOffer = async (
+  chainId: number,
+  matcher: string,
+  privateKey: string,
+  apeOffer: DataTypes.ApeOfferStruct
+) => {
   const types = [
     "bytes32", // type hash
     "uint8", // poolId
@@ -342,15 +351,58 @@ export const signApeOffer = async (
   const domain: TypedDataDomain = {
     name: NAME,
     version: VERSION,
-    chainId: env.chainId,
-    verifyingContract: contracts.stakeMatcher.address,
+    chainId: chainId,
+    verifyingContract: matcher,
   };
   return await signTypedData(privateKey, types, values, domain);
+};
+
+export const hashApeOffer = async (apeOffer: DataTypes.ApeOfferStruct) => {
+  const types = [
+    "bytes32", // type hash
+    "uint8", // poolId
+    "address", // staker
+    "address", // bakcOfferee
+    "address", // coinOfferee
+    "address", // collection
+    "uint256", // tokenId
+    "uint256", // coinAmount
+    "uint256", // share
+    "uint256", // startTime
+    "uint256", // endTime
+    "uint256", // nonce
+  ];
+
+  const values = [
+    "0x0d25ac8a2eb3886bb519915926ca9aad501599e935bca3ba360313f89fd84c1f",
+    await apeOffer.poolId,
+    await apeOffer.staker,
+    await apeOffer.bakcOfferee,
+    await apeOffer.coinOfferee,
+    await apeOffer.collection,
+    await apeOffer.tokenId,
+    await apeOffer.coinAmount,
+    await apeOffer.share,
+    await apeOffer.startTime,
+    await apeOffer.endTime,
+    await apeOffer.nonce,
+  ];
+
+  return keccak256(defaultAbiCoder.encode(types, values));
 };
 
 export const signBakcOffer = async (
   env: Env,
   contracts: Contracts,
+  privateKey: string,
+  bakcOffer: DataTypes.BakcOfferStruct
+) => {
+  return await _signBakcOffer(env.chainId, contracts.stakeMatcher.address, privateKey, bakcOffer);
+};
+
+export const _signBakcOffer = async (
+  chainId: number,
+  matcher: string,
   privateKey: string,
   bakcOffer: DataTypes.BakcOfferStruct
 ) => {
@@ -383,15 +435,84 @@ export const signBakcOffer = async (
   const domain: TypedDataDomain = {
     name: NAME,
     version: VERSION,
-    chainId: env.chainId,
-    verifyingContract: contracts.stakeMatcher.address,
+    chainId: chainId,
+    verifyingContract: matcher,
   };
   return await signTypedData(privateKey, types, values, domain);
+};
+
+export const hashBakcOffer = async (bakcOffer: DataTypes.BakcOfferStruct) => {
+  const types = [
+    "bytes32", // type hash
+    "address", // staker
+    "address", // apeOfferee
+    "address", // coinOfferee
+    "uint256", // tokenId
+    "uint256", // coinAmount
+    "uint256", // share
+    "uint256", // startTime
+    "uint256", // endTime
+    "uint256", // nonce
+  ];
+
+  const values = [
+    "0x7663fdea75f14fe999486aacbb9f2cc2a805c44d01ddfd827ac5b1529d848a24",
+    await bakcOffer.staker,
+    await bakcOffer.apeOfferee,
+    await bakcOffer.coinOfferee,
+    await bakcOffer.tokenId,
+    await bakcOffer.coinAmount,
+    await bakcOffer.share,
+    await bakcOffer.startTime,
+    await bakcOffer.endTime,
+    await bakcOffer.nonce,
+  ];
+
+  return keccak256(defaultAbiCoder.encode(types, values));
 };
 
 export const signCoinOffer = async (
   env: Env,
   contracts: Contracts,
+  privateKey: string,
+  coinOffer: DataTypes.CoinOfferStruct
+) => {
+  return await _signCoinOffer(env.chainId, contracts.stakeMatcher.address, privateKey, coinOffer);
+};
+
+export const hashCoinOffer = async (coinOffer: DataTypes.CoinOfferStruct) => {
+  const types = [
+    "bytes32", // type hash
+    "uint8", // poolId
+    "address", // staker
+    "address", // apeOfferee
+    "address", // bakcOfferee
+    "uint256", // coinAmount
+    "uint256", // share
+    "uint256", // startTime
+    "uint256", // endTime
+    "uint256", // nonce
+  ];
+
+  const values = [
+    "0x1ee48a7f548126fdd0125dc5358eb4a17d8698a0e540c58f3f1dbdebc802e653",
+    await coinOffer.poolId,
+    await coinOffer.staker,
+    await coinOffer.apeOfferee,
+    await coinOffer.bakcOfferee,
+    await coinOffer.coinAmount,
+    await coinOffer.share,
+    await coinOffer.startTime,
+    await coinOffer.endTime,
+    await coinOffer.nonce,
+  ];
+
+  return keccak256(defaultAbiCoder.encode(types, values));
+};
+
+export const _signCoinOffer = async (
+  chainId: number,
+  matcher: string,
   privateKey: string,
   coinOffer: DataTypes.CoinOfferStruct
 ) => {
@@ -424,8 +545,8 @@ export const signCoinOffer = async (
   const domain: TypedDataDomain = {
     name: NAME,
     version: VERSION,
-    chainId: env.chainId,
-    verifyingContract: contracts.stakeMatcher.address,
+    chainId: chainId,
+    verifyingContract: matcher,
   };
   return await signTypedData(privateKey, types, values, domain);
 };

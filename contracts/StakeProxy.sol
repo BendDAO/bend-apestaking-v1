@@ -25,7 +25,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
     using SafeCast for uint256;
     using SafeCast for int256;
 
-    uint256 public override version = 1;
+    uint256 public override version;
 
     mapping(address => uint256) public pendingRewards;
     mapping(address => uint256) public pendingWithdraw;
@@ -65,8 +65,8 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         mayc = IERC721(mayc_);
         bakc = IERC721(bakc_);
         apeCoin = IERC20(apeCoin_);
-
         apeStaking = IApeCoinStaking(apeCoinStaking_);
+        version = 1;
     }
 
     function apeStaked() external view returns (DataTypes.ApeStaked memory) {

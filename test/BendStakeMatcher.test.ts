@@ -5,7 +5,18 @@ import { Contracts, Env, makeSuite, Snapshots } from "./_setup";
 import { constants, Contract } from "ethers";
 
 import { IStakeProxy } from "../typechain-types/contracts/interfaces/IStakeProxy";
-import { getContract, makeBN18, randomMatchBakc, randomMatchBakcAndCoin, randomMatchCoin, signOffers } from "./utils";
+import {
+  emptyBytes32,
+  getContract,
+  hashApeOffer,
+  hashBakcOffer,
+  hashCoinOffer,
+  makeBN18,
+  randomMatchBakc,
+  randomMatchBakcAndCoin,
+  randomMatchCoin,
+  signOffers,
+} from "./utils";
 import { latest } from "./helpers/block-traveller";
 import { parseEvents } from "./helpers/transaction-helper";
 
@@ -100,6 +111,53 @@ makeSuite("BendStakeMatcher", (contracts: Contracts, env: Env, snapshots: Snapsh
     }
   };
 
+  const assertMatchState = async (param: any) => {
+    const apeStakedStorage = await param.proxy.apeStaked();
+    const bakcStakedStorage = await param.proxy.bakcStaked();
+    const coinStakedStorage = await param.proxy.coinStaked();
+
+    const apeOffer = param.apeOffer;
+    const bakcOffer = param.bakcOffer;
+    const coinOffer = param.coinOffer;
+
+    expect(await hashApeOffer(apeOffer)).to.eq(apeStakedStorage.offerHash);
+    expect(await apeOffer.staker).to.eq(apeStakedStorage.staker);
+    expect(await apeOffer.collection).to.eq(apeStakedStorage.collection);
+    expect(await apeOffer.tokenId).to.eq(apeStakedStorage.tokenId);
+    expect(await apeOffer.share).to.eq(apeStakedStorage.share);
+    expect(await apeOffer.coinAmount).to.eq(apeStakedStorage.coinAmount);
+
+    expect(await bakcOffer.staker).to.eq(bakcStakedStorage.staker);
+    expect(await bakcOffer.tokenId).to.eq(bakcStakedStorage.tokenId);
+    expect(await bakcOffer.share).to.eq(bakcStakedStorage.share);
+    expect(await bakcOffer.coinAmount).to.eq(bakcStakedStorage.coinAmount);
+
+    expect(await coinOffer.staker).to.eq(coinStakedStorage.staker);
+    expect(await coinOffer.share).to.eq(coinStakedStorage.share);
+    expect(await coinOffer.coinAmount).to.eq(coinStakedStorage.coinAmount);
+
+    expect(await contracts.stakeManager.getStakedProxies(apeOffer.collection, apeOffer.tokenId)).contains(
+      param.proxy.address
+    );
+    if (bakcOffer.staker !== constants.AddressZero) {
+      expect(await hashBakcOffer(bakcOffer)).to.eq(bakcStakedStorage.offerHash);
+      expect(await contracts.stakeManager.getStakedProxies(contracts.bakc.address, bakcOffer.tokenId)).contains(
+        param.proxy.address
+      );
+      expect(await contracts.bakc.ownerOf(bakcOffer.tokenId)).eq(param.proxy.address);
+    } else {
+      expect(emptyBytes32).to.eq(bakcStakedStorage.offerHash);
+      expect(await contracts.stakeManager.getStakedProxies(contracts.bakc.address, bakcOffer.tokenId)).not.contains(
+        param.proxy.address
+      );
+    }
+    if (coinOffer.staker !== constants.AddressZero) {
+      expect(await hashCoinOffer(coinOffer)).to.eq(coinStakedStorage.offerHash);
+    } else {
+      expect(emptyBytes32).to.eq(coinStakedStorage.offerHash);
+    }
+  };
+
   before(async () => {
     await contracts.stakeManager.setMatcher(contracts.stakeMatcher.address);
     for (const staker of env.accounts) {
@@ -145,56 +203,97 @@ makeSuite("BendStakeMatcher", (contracts: Contracts, env: Env, snapshots: Snapsh
   });
 
   it("cancelOffers", async () => {
-    const nonces = fc.tuple(fc.uniqueArray(fc.nat(), { maxLength: 3 }), fc.nat()).filter((v) => {
+    const nonces = fc.tuple(fc.uniqueArray(fc.nat(), { maxLength: 3, minLength: 1 }), fc.nat()).filter((v) => {
       return !new Set(v[0]).has(v[1]);
     });
-    fc.assert(
-      fc.asyncProperty(nonces, async (v) => {
-        const [noncesCanceled, nonceNotCanceled] = v;
-        expect(await contracts.stakeMatcher.isCancelled(env.admin.address, nonceNotCanceled)).be.false;
-        for (const i of noncesCanceled) {
-          expect(await contracts.stakeMatcher.isCancelled(env.admin.address, i)).be.false;
-        }
-        await contracts.stakeMatcher.cancelOffers(noncesCanceled);
-        expect(await contracts.stakeMatcher.isCancelled(env.admin.address, nonceNotCanceled)).be.false;
-        for (const i of noncesCanceled) {
-          expect(await contracts.stakeMatcher.isCancelled(env.admin.address, i)).be.true;
-        }
-      }),
-      { numRuns: 1 }
+    await fc.assert(
+      fc
+        .asyncProperty(nonces, async (v) => {
+          const [noncesCanceled, nonceNotCanceled] = v;
+          expect(await contracts.stakeMatcher.isCancelled(env.admin.address, nonceNotCanceled)).be.false;
+          for (const i of noncesCanceled) {
+            expect(await contracts.stakeMatcher.isCancelled(env.admin.address, i)).be.false;
+          }
+          await contracts.stakeMatcher.cancelOffers(noncesCanceled);
+          expect(await contracts.stakeMatcher.isCancelled(env.admin.address, nonceNotCanceled)).be.false;
+          for (const i of noncesCanceled) {
+            expect(await contracts.stakeMatcher.isCancelled(env.admin.address, i)).be.true;
+          }
+        })
+        .beforeEach(async () => {
+          lastRevert = "init";
+          await snapshots.revert(lastRevert);
+        }),
+      { numRuns: 10 }
     );
   });
 
   it("matchWithBakcAndCoin", async () => {
     const now = await latest();
-    const [param, withLoan, matcher] = fc.sample(
-      fc.tuple(randomMatchBakcAndCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
-      1
-    )[0];
-    await prepareMatch(param, withLoan);
-    await signOffers(env, contracts, param);
-    await matchWithBakcAndCoin(param, matcher.address);
+    await fc.assert(
+      fc
+        .asyncProperty(
+          randomMatchBakcAndCoin(env, contracts, now),
+          fc.boolean(),
+          fc.constantFrom(...env.accounts),
+          async (param, withLoan, matcher) => {
+            await prepareMatch(param, withLoan);
+            await signOffers(env, contracts, param);
+            await matchWithBakcAndCoin(param, matcher.address);
+            await assertMatchState(param);
+          }
+        )
+        .beforeEach(async () => {
+          lastRevert = "init";
+          await snapshots.revert(lastRevert);
+        }),
+      { numRuns: 10 }
+    );
   });
 
   it("matchWithBakc", async () => {
     const now = await latest();
-    const [param, withLoan, matcher] = fc.sample(
-      fc.tuple(randomMatchBakc(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
-      1
-    )[0];
-    await prepareMatch(param, withLoan);
-    await signOffers(env, contracts, param);
-    await matchWithBakc(param, matcher.address);
+    await fc.assert(
+      fc
+        .asyncProperty(
+          randomMatchBakc(env, contracts, now),
+          fc.boolean(),
+          fc.constantFrom(...env.accounts),
+          async (param, withLoan, matcher) => {
+            await prepareMatch(param, withLoan);
+            await signOffers(env, contracts, param);
+            await matchWithBakc(param, matcher.address);
+            await assertMatchState(param);
+          }
+        )
+        .beforeEach(async () => {
+          lastRevert = "init";
+          await snapshots.revert(lastRevert);
+        }),
+      { numRuns: 10 }
+    );
   });
 
   it("matchWithCoin", async () => {
     const now = await latest();
-    const [param, withLoan, matcher] = fc.sample(
-      fc.tuple(randomMatchCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
-      1
-    )[0];
-    await prepareMatch(param, withLoan);
-    await signOffers(env, contracts, param);
-    await matchWithCoin(param, matcher.address);
+    await fc.assert(
+      fc
+        .asyncProperty(
+          randomMatchCoin(env, contracts, now),
+          fc.boolean(),
+          fc.constantFrom(...env.accounts),
+          async (param, withLoan, matcher) => {
+            await prepareMatch(param, withLoan);
+            await signOffers(env, contracts, param);
+            await matchWithCoin(param, matcher.address);
+            await assertMatchState(param);
+          }
+        )
+        .beforeEach(async () => {
+          lastRevert = "init";
+          await snapshots.revert(lastRevert);
+        }),
+      { numRuns: 10 }
+    );
   });
 });
