@@ -254,7 +254,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         require(apeOffer.staker != address(0), "Offer: invalid ape staker");
         require(apeOffer.startTime <= block.timestamp, "Offer: ape offer not start");
         require(apeOffer.endTime >= block.timestamp, "Offer: ape offer expired");
-        require(_validateOfferNonce(apeOffer.staker, apeOffer.nonce), "Offer: ape offer canceled");
+        require(_validateOfferNonce(apeOffer.staker, apeOffer.nonce), "Offer: invalid ape offer nonce");
 
         require(
             apeOffer.collection == address(bayc) || apeOffer.collection == address(mayc),
@@ -280,7 +280,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         require(bakcOffer.staker != address(0), "Offer: invalid bakc staker");
         require(bakcOffer.startTime <= block.timestamp, "Offer: bakc offer not start");
         require(bakcOffer.endTime >= block.timestamp, "Offer: bakc offer expired");
-        require(_validateOfferNonce(bakcOffer.staker, bakcOffer.nonce), "Offer: bakc offer expired");
+        require(_validateOfferNonce(bakcOffer.staker, bakcOffer.nonce), "Offer: invalid bakc offer nonce");
 
         require(IERC721Upgradeable(bakc).ownerOf(bakcOffer.tokenId) == bakcOffer.staker, "Offer: not bakc owner");
 
@@ -295,7 +295,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         require(coinOffer.startTime <= block.timestamp, "Offer: coin offer not start");
         require(coinOffer.endTime >= block.timestamp, "Offer: coin offer expired");
         require(coinOffer.coinAmount > 0, "Offer: coin amount can't be 0");
-        require(_validateOfferNonce(coinOffer.staker, coinOffer.nonce), "Offer: coin offer expired");
+        require(_validateOfferNonce(coinOffer.staker, coinOffer.nonce), "Offer: invalid coin offer nonce");
         require(
             _validateOfferSignature(coinOffer.staker, coinOffer.hash(), coinOffer.r, coinOffer.s, coinOffer.v),
             "Offer: invalid coin offer signature"
@@ -328,7 +328,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
 
     function _validateOfferNonce(address offeror, uint256 nonce) internal view returns (bool) {
         if (_msgSender() == offeror) {
-            return nonce == 0;
+            return true;
         }
         return !_isCancelled[offeror][nonce];
     }
