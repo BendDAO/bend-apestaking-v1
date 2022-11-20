@@ -1,0 +1,61 @@
+import { formatBytes32String, parseEther } from "ethers/lib/utils";
+
+export const emptyBytes32 = formatBytes32String("");
+
+const sender = "";
+const apeStaker = "";
+const bakcStaker = "";
+const coinStaker = "";
+const bayc = "0x30d190032A34d6151073a7DB8793c01Aa05987ec";
+// const mayc = "0x15596C27900e12A9cfC301248E21888751f61c19";
+
+const now = Math.floor(Date.now() / 1000);
+
+module.exports = {
+  sender: sender,
+  apeOffer: {
+    poolId: 3,
+    staker: apeStaker,
+    bakcOfferee: bakcStaker,
+    coinOfferee: coinStaker,
+    collection: bayc,
+    tokenId: 5790,
+    coinAmount: parseEther("500"),
+    share: 7500,
+    startTime: now,
+    endTime: now + 3600 * 24,
+    nonce: 0,
+    v: 0,
+    r: emptyBytes32,
+    s: emptyBytes32,
+  },
+  bakcOffer: {
+    staker: bakcStaker,
+    apeOfferee: apeStaker,
+    coinOfferee: coinStaker,
+    tokenId: 391,
+    coinAmount: parseEther("100"),
+    share: 2000,
+    startTime: now,
+    endTime: now + 3600 * 24,
+    nonce: 0,
+    v: 0,
+    r: emptyBytes32,
+    s: emptyBytes32,
+  },
+
+  coinOffer: {
+    poolId: 3,
+    staker: coinStaker,
+    apeOfferee: apeStaker,
+    bakcOfferee: bakcStaker,
+    coinAmount: parseEther("256"),
+    share: 500,
+    startTime: now,
+    endTime: now + 3600 * 24,
+    nonce: 0,
+    v: 0,
+    r: emptyBytes32,
+    s: emptyBytes32,
+  },
+};

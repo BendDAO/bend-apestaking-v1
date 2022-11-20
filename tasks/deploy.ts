@@ -29,7 +29,7 @@ task("deploy:full", "Deploy all contracts").setAction(async (_, { run }) => {
   await run("set-DRE");
   await run("compile");
 
-  await run("deploy:StakeProxy");
+  // await run("deploy:StakeProxy");
   await run("deploy:StakeManager");
   await run("deploy:BendStakeMatcher");
   await run("deploy:Config");

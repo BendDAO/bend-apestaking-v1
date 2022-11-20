@@ -24,7 +24,7 @@ const REPORT_GAS = !!process.env.REPORT_GAS;
 
 const tasksPath = path.join(__dirname, "tasks");
 fs.readdirSync(tasksPath)
-  .filter((pth) => pth.includes(".ts"))
+  .filter((pth) => pth.endsWith(".ts"))
   .forEach((task) => {
     require(`${tasksPath}/${task}`);
   });

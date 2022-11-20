@@ -259,7 +259,9 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
             apeCoin.safeTransfer(feeRecipient, toFee);
             toStaker -= toFee;
         }
-        apeCoin.safeTransfer(staker, toStaker);
+        if (toStaker > 0) {
+            apeCoin.safeTransfer(staker, toStaker);
+        }
         pendingRewards[staker] = 0;
     }
 

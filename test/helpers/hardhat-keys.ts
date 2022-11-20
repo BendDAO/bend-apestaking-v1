@@ -30,12 +30,6 @@ export async function findPrivateKey(publicKey: string): Promise<string> {
       return "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba";
 
     default:
-      try {
-        // @ts-ignore
-        const keys = await import("../../keys");
-        return keys.findPrivateKey(publicKey);
-      } catch (error) {
-        throw new Error(`No private key found for ${publicKey}`);
-      }
+      throw new Error(`No private key found for ${publicKey}`);
   }
 }
