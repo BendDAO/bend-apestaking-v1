@@ -1,8 +1,8 @@
 /* eslint-disable node/no-unsupported-features/es-syntax */
-
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable node/no-missing-import */
 import { constants } from "ethers";
 import { task } from "hardhat/config";
-import { findPrivateKey } from "./keys";
 import { IStakeMatcher } from "../typechain-types";
 import { APE_COIN, BAKC, BAYC, getParams } from "./config";
 import { getContractAddressFromDB, getContractFromDB, waitForTx } from "./utils/helpers";
@@ -11,6 +11,8 @@ task("mock:matchWithBakcAndCoin", "Mock matchWithBakcAndCoin")
   .addParam("argspath", "offers args")
   .setAction(async ({ argspath }, { ethers, network, run }) => {
     await run("set-DRE");
+    // @ts-ignore
+    const keys = await import("./keys");
     const args = await import(argspath);
     const utils = await import("../test/utils");
 
@@ -18,10 +20,10 @@ task("mock:matchWithBakcAndCoin", "Mock matchWithBakcAndCoin")
 
     const matcher = await getContractFromDB<IStakeMatcher>("BendStakeMatcher");
 
-    const senderSigner = new ethers.Wallet(findPrivateKey(args.sender), ethers.provider);
-    const apeSigner = new ethers.Wallet(findPrivateKey(args.apeOffer.staker), ethers.provider);
-    const bakcSigner = new ethers.Wallet(findPrivateKey(args.bakcOffer.staker), ethers.provider);
-    const coinSigner = new ethers.Wallet(findPrivateKey(args.coinOffer.staker), ethers.provider);
+    const senderSigner = new ethers.Wallet(keys.findPrivateKey(args.sender), ethers.provider);
+    const apeSigner = new ethers.Wallet(keys.findPrivateKey(args.apeOffer.staker), ethers.provider);
+    const bakcSigner = new ethers.Wallet(keys.findPrivateKey(args.bakcOffer.staker), ethers.provider);
+    const coinSigner = new ethers.Wallet(keys.findPrivateKey(args.coinOffer.staker), ethers.provider);
 
     const matcherContract = await getContractAddressFromDB("BendStakeMatcher");
     const apeContract = await ethers.getContractAt("MintableERC721", getParams(BAYC, network.name));
@@ -33,7 +35,7 @@ task("mock:matchWithBakcAndCoin", "Mock matchWithBakcAndCoin")
       const sig = await utils._signApeOffer(
         chainId,
         matcherContract,
-        findPrivateKey(args.apeOffer.staker),
+        keys.findPrivateKey(args.apeOffer.staker),
         args.apeOffer
       );
       args.apeOffer.r = sig.r;
@@ -46,7 +48,7 @@ task("mock:matchWithBakcAndCoin", "Mock matchWithBakcAndCoin")
       const sig = await utils._signBakcOffer(
         chainId,
         matcherContract,
-        findPrivateKey(args.bakcOffer.staker),
+        keys.findPrivateKey(args.bakcOffer.staker),
         args.bakcOffer
       );
       args.bakcOffer.r = sig.r;
@@ -59,7 +61,7 @@ task("mock:matchWithBakcAndCoin", "Mock matchWithBakcAndCoin")
       const sig = await utils._signBakcOffer(
         chainId,
         matcherContract,
-        findPrivateKey(args.coinOffer.staker),
+        keys.findPrivateKey(args.coinOffer.staker),
         args.coinOffer
       );
       args.coinOffer.r = sig.r;
@@ -90,7 +92,8 @@ task("mock:matchWithBakc", "Mock matchWithBakc")
   .addParam("argspath", "offers args")
   .setAction(async ({ argspath }, { ethers, network, run }) => {
     await run("set-DRE");
-
+    // @ts-ignore
+    const keys = await import("./keys");
     const args = await import(argspath);
     const utils = await import("../test/utils");
 
@@ -98,9 +101,9 @@ task("mock:matchWithBakc", "Mock matchWithBakc")
 
     const matcher = await getContractFromDB<IStakeMatcher>("BendStakeMatcher");
 
-    const senderSigner = new ethers.Wallet(findPrivateKey(args.sender), ethers.provider);
-    const apeSigner = new ethers.Wallet(findPrivateKey(args.apeOffer.staker), ethers.provider);
-    const bakcSigner = new ethers.Wallet(findPrivateKey(args.bakcOffer.staker), ethers.provider);
+    const senderSigner = new ethers.Wallet(keys.findPrivateKey(args.sender), ethers.provider);
+    const apeSigner = new ethers.Wallet(keys.findPrivateKey(args.apeOffer.staker), ethers.provider);
+    const bakcSigner = new ethers.Wallet(keys.findPrivateKey(args.bakcOffer.staker), ethers.provider);
 
     const matcherContract = await getContractAddressFromDB("BendStakeMatcher");
     const apeContract = await ethers.getContractAt("MintableERC721", getParams(BAYC, network.name));
@@ -112,7 +115,7 @@ task("mock:matchWithBakc", "Mock matchWithBakc")
       const sig = await utils._signApeOffer(
         chainId,
         matcherContract,
-        findPrivateKey(args.apeOffer.staker),
+        keys.findPrivateKey(args.apeOffer.staker),
         args.apeOffer
       );
       args.apeOffer.r = sig.r;
@@ -125,7 +128,7 @@ task("mock:matchWithBakc", "Mock matchWithBakc")
       const sig = await utils._signBakcOffer(
         chainId,
         matcherContract,
-        findPrivateKey(args.bakcOffer.staker),
+        keys.findPrivateKey(args.bakcOffer.staker),
         args.bakcOffer
       );
       args.bakcOffer.r = sig.r;
@@ -153,6 +156,8 @@ task("mock:matchWithCoin", "Mock matchWithCoin")
   .setAction(async ({ argspath }, { ethers, network, run }) => {
     await run("set-DRE");
 
+    // @ts-ignore
+    const keys = await import("./keys");
     const args = await import(argspath);
     const utils = await import("../test/utils");
 
@@ -160,9 +165,9 @@ task("mock:matchWithCoin", "Mock matchWithCoin")
 
     const matcher = await getContractFromDB<IStakeMatcher>("BendStakeMatcher");
 
-    const senderSigner = new ethers.Wallet(findPrivateKey(args.sender), ethers.provider);
-    const apeSigner = new ethers.Wallet(findPrivateKey(args.apeOffer.staker), ethers.provider);
-    const coinSigner = new ethers.Wallet(findPrivateKey(args.coinOffer.staker), ethers.provider);
+    const senderSigner = new ethers.Wallet(keys.findPrivateKey(args.sender), ethers.provider);
+    const apeSigner = new ethers.Wallet(keys.findPrivateKey(args.apeOffer.staker), ethers.provider);
+    const coinSigner = new ethers.Wallet(keys.findPrivateKey(args.coinOffer.staker), ethers.provider);
 
     const matcherContract = await getContractAddressFromDB("BendStakeMatcher");
     const apeContract = await ethers.getContractAt("MintableERC721", getParams(BAYC, network.name));
@@ -173,7 +178,7 @@ task("mock:matchWithCoin", "Mock matchWithCoin")
       const sig = await utils._signApeOffer(
         chainId,
         matcherContract,
-        findPrivateKey(args.apeOffer.staker),
+        keys.findPrivateKey(args.apeOffer.staker),
         args.apeOffer
       );
       args.apeOffer.r = sig.r;
@@ -186,7 +191,7 @@ task("mock:matchWithCoin", "Mock matchWithCoin")
       const sig = await utils._signBakcOffer(
         chainId,
         matcherContract,
-        findPrivateKey(args.coinOffer.staker),
+        keys.findPrivateKey(args.coinOffer.staker),
         args.coinOffer
       );
       args.coinOffer.r = sig.r;
