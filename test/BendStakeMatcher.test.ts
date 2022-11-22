@@ -15,10 +15,14 @@ import {
   randomMatchBakc,
   randomMatchBakcAndCoin,
   randomMatchCoin,
+  signApeOffer,
+  signBakcOffer,
+  signCoinOffer,
   signOffers,
 } from "./utils";
 import { latest } from "./helpers/block-traveller";
 import { parseEvents } from "./helpers/transaction-helper";
+import { findPrivateKey } from "./helpers/hardhat-keys";
 
 fc.configureGlobal({
   numRuns: 10,
@@ -210,14 +214,14 @@ makeSuite("BendStakeMatcher", (contracts: Contracts, env: Env, snapshots: Snapsh
       fc
         .asyncProperty(nonces, async (v) => {
           const [noncesCanceled, nonceNotCanceled] = v;
-          expect(await contracts.stakeMatcher.isCancelled(env.admin.address, nonceNotCanceled)).be.false;
+          expect(await contracts.stakeMatcher.isExecutedOrCancelled(env.admin.address, nonceNotCanceled)).be.false;
           for (const i of noncesCanceled) {
-            expect(await contracts.stakeMatcher.isCancelled(env.admin.address, i)).be.false;
+            expect(await contracts.stakeMatcher.isExecutedOrCancelled(env.admin.address, i)).be.false;
           }
           await contracts.stakeMatcher.cancelOffers(noncesCanceled);
-          expect(await contracts.stakeMatcher.isCancelled(env.admin.address, nonceNotCanceled)).be.false;
+          expect(await contracts.stakeMatcher.isExecutedOrCancelled(env.admin.address, nonceNotCanceled)).be.false;
           for (const i of noncesCanceled) {
-            expect(await contracts.stakeMatcher.isCancelled(env.admin.address, i)).be.true;
+            expect(await contracts.stakeMatcher.isExecutedOrCancelled(env.admin.address, i)).be.true;
           }
         })
         .beforeEach(async () => {
@@ -238,7 +242,7 @@ makeSuite("BendStakeMatcher", (contracts: Contracts, env: Env, snapshots: Snapsh
           fc.constantFrom(...env.accounts),
           async (param, withLoan, matcher) => {
             await prepareMatch(param, withLoan);
-            await signOffers(env, contracts, param);
+            await signOffers(env, contracts, matcher.address, param);
             await matchWithBakcAndCoin(param, matcher.address);
             await assertMatchState(param);
           }
@@ -261,7 +265,7 @@ makeSuite("BendStakeMatcher", (contracts: Contracts, env: Env, snapshots: Snapsh
           fc.constantFrom(...env.accounts),
           async (param, withLoan, matcher) => {
             await prepareMatch(param, withLoan);
-            await signOffers(env, contracts, param);
+            await signOffers(env, contracts, matcher.address, param);
             await matchWithBakc(param, matcher.address);
             await assertMatchState(param);
           }
@@ -284,7 +288,7 @@ makeSuite("BendStakeMatcher", (contracts: Contracts, env: Env, snapshots: Snapsh
           fc.constantFrom(...env.accounts),
           async (param, withLoan, matcher) => {
             await prepareMatch(param, withLoan);
-            await signOffers(env, contracts, param);
+            await signOffers(env, contracts, matcher.address, param);
             await matchWithCoin(param, matcher.address);
             await assertMatchState(param);
           }
@@ -295,5 +299,535 @@ makeSuite("BendStakeMatcher", (contracts: Contracts, env: Env, snapshots: Snapsh
         }),
       { numRuns: 10 }
     );
+  });
+
+  it("matchWithBakcAndCoin: revert - invalid offer nonce", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchBakcAndCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+
+    await prepareMatch(param, withLoan);
+    await signOffers(env, contracts, matcher.address, param);
+    await matchWithBakcAndCoin(param, matcher.address);
+
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    if (param.apeOffer.staker !== matcher.address) {
+      await expect(
+        contracts.stakeMatcher
+          .connect(matchSigner)
+          .matchWithBakcAndCoin(param.apeOffer, param.bakcOffer, param.coinOffer)
+      ).revertedWith("Offer: invalid ape offer nonce");
+      param.apeOffer.nonce += 1;
+      await signOffers(env, contracts, matcher.address, param);
+    }
+
+    if (param.bakcOffer.staker !== matcher.address) {
+      await expect(
+        contracts.stakeMatcher
+          .connect(matchSigner)
+          .matchWithBakcAndCoin(param.apeOffer, param.bakcOffer, param.coinOffer)
+      ).revertedWith("Offer: invalid bakc offer nonce");
+      param.bakcOffer.nonce += 1;
+      await signOffers(env, contracts, matcher.address, param);
+    }
+  });
+
+  it("matchWithBakcAndCoin: revert - validate ape offer", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchBakcAndCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    let invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.staker = constants.AddressZero;
+
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(invalidApeOffer, param.bakcOffer, param.coinOffer)
+    ).revertedWith("Offer: invalid ape staker");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.startTime = (await latest()) + 2;
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(invalidApeOffer, param.bakcOffer, param.coinOffer)
+    ).revertedWith("Offer: ape offer not start");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.endTime = (await latest()) - 2;
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(invalidApeOffer, param.bakcOffer, param.coinOffer)
+    ).revertedWith("Offer: ape offer expired");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.collection = constants.AddressZero;
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(invalidApeOffer, param.bakcOffer, param.coinOffer)
+    ).revertedWith("Offer: not ape collection");
+
+    await prepareMatch(param, withLoan);
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.tokenId = 101;
+    await (param as any).apeContract.mint(invalidApeOffer.tokenId);
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(invalidApeOffer, param.bakcOffer, param.coinOffer)
+    ).revertedWith("ERC721: owner query for nonexistent token");
+
+    await snapshots.revert("init");
+    await prepareMatch(param, withLoan);
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.tokenId = 101;
+    await (param as any).apeContract.mint(invalidApeOffer.tokenId);
+    await (param as any).apeContract.approve(contracts.lendPool.address, invalidApeOffer.tokenId);
+    await contracts.lendPool.borrow(
+      contracts.weth.address,
+      makeBN18("0.001"),
+      invalidApeOffer.collection,
+      invalidApeOffer.tokenId,
+      env.admin.address,
+      0
+    );
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(invalidApeOffer, param.bakcOffer, param.coinOffer)
+    ).revertedWith("Offer: not ape owner");
+    await snapshots.revert("init");
+
+    await prepareMatch(param, withLoan);
+
+    invalidApeOffer = await signApeOffer(env, contracts, await findPrivateKey(env.admin.address), param.apeOffer);
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithBakcAndCoin(invalidApeOffer, param.bakcOffer, param.coinOffer)
+    ).revertedWith("Offer: invalid ape offer signature");
+
+    const signedApeOffer = await signApeOffer(
+      env,
+      contracts,
+      await findPrivateKey(param.apeOffer.staker),
+      param.apeOffer
+    );
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithBakcAndCoin(signedApeOffer, param.bakcOffer, param.coinOffer)
+    ).not.revertedWith("Offer: invalid ape offer signature");
+  }).timeout(40000);
+
+  it("matchWithBakcAndCoin: revert - validate bakc offer", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchBakcAndCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    await prepareMatch(param, withLoan);
+    await signOffers(env, contracts, matcher.address, param);
+
+    let invalidBakcOffer = { ...param.bakcOffer };
+    invalidBakcOffer.staker = constants.AddressZero;
+
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(param.apeOffer, invalidBakcOffer, param.coinOffer)
+    ).revertedWith("Offer: invalid bakc staker");
+
+    invalidBakcOffer = { ...param.bakcOffer };
+    invalidBakcOffer.startTime = (await latest()) + 2;
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(param.apeOffer, invalidBakcOffer, param.coinOffer)
+    ).revertedWith("Offer: bakc offer not start");
+
+    invalidBakcOffer = { ...param.bakcOffer };
+    invalidBakcOffer.endTime = (await latest()) - 2;
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(param.apeOffer, invalidBakcOffer, param.coinOffer)
+    ).revertedWith("Offer: bakc offer expired");
+
+    invalidBakcOffer = { ...param.bakcOffer };
+    invalidBakcOffer.tokenId = 101;
+    await contracts.bakc.mint(invalidBakcOffer.tokenId);
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(param.apeOffer, invalidBakcOffer, param.coinOffer)
+    ).revertedWith("Offer: not bakc owner");
+
+    await signOffers(env, contracts, env.admin.address, param);
+    invalidBakcOffer = await signBakcOffer(env, contracts, await findPrivateKey(env.admin.address), param.bakcOffer);
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithBakcAndCoin(param.apeOffer, invalidBakcOffer, param.coinOffer)
+    ).revertedWith("Offer: invalid bakc offer signature");
+  });
+
+  it("matchWithBakcAndCoin: revert - validate coin offer", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchBakcAndCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    await prepareMatch(param, withLoan);
+    await signOffers(env, contracts, matcher.address, param);
+
+    let invalidCoinOffer = { ...param.coinOffer };
+    invalidCoinOffer.staker = constants.AddressZero;
+
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(param.apeOffer, param.bakcOffer, invalidCoinOffer)
+    ).revertedWith("Offer: invalid coin staker");
+
+    invalidCoinOffer = { ...param.coinOffer };
+    invalidCoinOffer.startTime = (await latest()) + 2;
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(param.apeOffer, param.bakcOffer, invalidCoinOffer)
+    ).revertedWith("Offer: coin offer not start");
+
+    invalidCoinOffer = { ...param.coinOffer };
+    invalidCoinOffer.endTime = (await latest()) - 2;
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(param.apeOffer, param.bakcOffer, invalidCoinOffer)
+    ).revertedWith("Offer: coin offer expired");
+
+    invalidCoinOffer = { ...param.coinOffer };
+    invalidCoinOffer.coinAmount = 0;
+    await expect(
+      contracts.stakeMatcher
+        .connect(matchSigner)
+        .matchWithBakcAndCoin(param.apeOffer, param.bakcOffer, invalidCoinOffer)
+    ).revertedWith("Offer: coin amount can't be 0");
+
+    await signOffers(env, contracts, env.admin.address, param);
+    invalidCoinOffer = await signCoinOffer(env, contracts, await findPrivateKey(env.admin.address), param.coinOffer);
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithBakcAndCoin(param.apeOffer, param.bakcOffer, invalidCoinOffer)
+    ).revertedWith("Offer: invalid coin offer signature");
+  });
+
+  it("matchWithBakc: revert - invalid offer nonce", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchBakc(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+
+    await prepareMatch(param, withLoan);
+    await signOffers(env, contracts, matcher.address, param);
+    await matchWithBakc(param, matcher.address);
+
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    if (param.apeOffer.staker !== matcher.address) {
+      await expect(
+        contracts.stakeMatcher.connect(matchSigner).matchWithBakc(param.apeOffer, param.bakcOffer)
+      ).revertedWith("Offer: invalid ape offer nonce");
+      param.apeOffer.nonce += 1;
+      await signOffers(env, contracts, matcher.address, param);
+    }
+
+    if (param.bakcOffer.staker !== matcher.address) {
+      await expect(
+        contracts.stakeMatcher.connect(matchSigner).matchWithBakc(param.apeOffer, param.bakcOffer)
+      ).revertedWith("Offer: invalid bakc offer nonce");
+      param.bakcOffer.nonce += 1;
+      await signOffers(env, contracts, matcher.address, param);
+    }
+  });
+
+  it("matchWithBakc: revert - validate ape offer", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchBakc(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    let invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.staker = constants.AddressZero;
+
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(invalidApeOffer, param.bakcOffer)
+    ).revertedWith("Offer: invalid ape staker");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.startTime = (await latest()) + 2;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(invalidApeOffer, param.bakcOffer)
+    ).revertedWith("Offer: ape offer not start");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.endTime = (await latest()) - 2;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(invalidApeOffer, param.bakcOffer)
+    ).revertedWith("Offer: ape offer expired");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.collection = constants.AddressZero;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(invalidApeOffer, param.bakcOffer)
+    ).revertedWith("Offer: not ape collection");
+
+    await prepareMatch(param, withLoan);
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.tokenId = 101;
+    await (param as any).apeContract.mint(invalidApeOffer.tokenId);
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(invalidApeOffer, param.bakcOffer)
+    ).revertedWith("ERC721: owner query for nonexistent token");
+
+    await snapshots.revert("init");
+    await prepareMatch(param, withLoan);
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.tokenId = 101;
+    await (param as any).apeContract.mint(invalidApeOffer.tokenId);
+    await (param as any).apeContract.approve(contracts.lendPool.address, invalidApeOffer.tokenId);
+    await contracts.lendPool.borrow(
+      contracts.weth.address,
+      makeBN18("0.001"),
+      invalidApeOffer.collection,
+      invalidApeOffer.tokenId,
+      env.admin.address,
+      0
+    );
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(invalidApeOffer, param.bakcOffer)
+    ).revertedWith("Offer: not ape owner");
+    await snapshots.revert("init");
+
+    await prepareMatch(param, withLoan);
+
+    invalidApeOffer = await signApeOffer(env, contracts, await findPrivateKey(env.admin.address), param.apeOffer);
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithBakc(invalidApeOffer, param.bakcOffer)
+    ).revertedWith("Offer: invalid ape offer signature");
+
+    const signedApeOffer = await signApeOffer(
+      env,
+      contracts,
+      await findPrivateKey(param.apeOffer.staker),
+      param.apeOffer
+    );
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithBakc(signedApeOffer, param.bakcOffer)
+    ).not.revertedWith("Offer: invalid ape offer signature");
+  }).timeout(40000);
+
+  it("matchWithBakc: revert - validate bakc offer", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchBakc(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    await prepareMatch(param, withLoan);
+    await signOffers(env, contracts, matcher.address, param);
+
+    let invalidBakcOffer = { ...param.bakcOffer };
+    invalidBakcOffer.staker = constants.AddressZero;
+
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(param.apeOffer, invalidBakcOffer)
+    ).revertedWith("Offer: invalid bakc staker");
+
+    invalidBakcOffer = { ...param.bakcOffer };
+    invalidBakcOffer.startTime = (await latest()) + 2;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(param.apeOffer, invalidBakcOffer)
+    ).revertedWith("Offer: bakc offer not start");
+
+    invalidBakcOffer = { ...param.bakcOffer };
+    invalidBakcOffer.endTime = (await latest()) - 2;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(param.apeOffer, invalidBakcOffer)
+    ).revertedWith("Offer: bakc offer expired");
+
+    invalidBakcOffer = { ...param.bakcOffer };
+    invalidBakcOffer.tokenId = 101;
+    await contracts.bakc.mint(invalidBakcOffer.tokenId);
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithBakc(param.apeOffer, invalidBakcOffer)
+    ).revertedWith("Offer: not bakc owner");
+
+    await signOffers(env, contracts, env.admin.address, param);
+    invalidBakcOffer = await signBakcOffer(env, contracts, await findPrivateKey(env.admin.address), param.bakcOffer);
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithBakc(param.apeOffer, invalidBakcOffer)
+    ).revertedWith("Offer: invalid bakc offer signature");
+  });
+
+  it("matchWithCoin: revert - invalid offer nonce", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+
+    await prepareMatch(param, withLoan);
+    await signOffers(env, contracts, matcher.address, param);
+    await matchWithCoin(param, matcher.address);
+
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    if (param.apeOffer.staker !== matcher.address) {
+      await expect(
+        contracts.stakeMatcher.connect(matchSigner).matchWithCoin(param.apeOffer, param.coinOffer)
+      ).revertedWith("Offer: invalid ape offer nonce");
+      param.apeOffer.nonce += 1;
+      await signOffers(env, contracts, matcher.address, param);
+    }
+
+    if (param.coinOffer.staker !== matcher.address) {
+      await expect(
+        contracts.stakeMatcher.connect(matchSigner).matchWithCoin(param.apeOffer, param.coinOffer)
+      ).revertedWith("Offer: invalid coin offer nonce");
+      param.coinOffer.nonce += 1;
+      await signOffers(env, contracts, matcher.address, param);
+    }
+  });
+
+  it("matchWithCoin: revert - validate ape offer", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    let invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.staker = constants.AddressZero;
+
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(invalidApeOffer, param.coinOffer)
+    ).revertedWith("Offer: invalid ape staker");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.startTime = (await latest()) + 2;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(invalidApeOffer, param.coinOffer)
+    ).revertedWith("Offer: ape offer not start");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.endTime = (await latest()) - 2;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(invalidApeOffer, param.coinOffer)
+    ).revertedWith("Offer: ape offer expired");
+
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.collection = constants.AddressZero;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(invalidApeOffer, param.coinOffer)
+    ).revertedWith("Offer: not ape collection");
+
+    await prepareMatch(param, withLoan);
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.tokenId = 101;
+    await (param as any).apeContract.mint(invalidApeOffer.tokenId);
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(invalidApeOffer, param.coinOffer)
+    ).revertedWith("ERC721: owner query for nonexistent token");
+
+    await snapshots.revert("init");
+    await prepareMatch(param, withLoan);
+    invalidApeOffer = { ...param.apeOffer };
+    invalidApeOffer.tokenId = 101;
+    await (param as any).apeContract.mint(invalidApeOffer.tokenId);
+    await (param as any).apeContract.approve(contracts.lendPool.address, invalidApeOffer.tokenId);
+    await contracts.lendPool.borrow(
+      contracts.weth.address,
+      makeBN18("0.001"),
+      invalidApeOffer.collection,
+      invalidApeOffer.tokenId,
+      env.admin.address,
+      0
+    );
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(invalidApeOffer, param.coinOffer)
+    ).revertedWith("Offer: not ape owner");
+    await snapshots.revert("init");
+
+    await prepareMatch(param, withLoan);
+
+    invalidApeOffer = await signApeOffer(env, contracts, await findPrivateKey(env.admin.address), param.apeOffer);
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithCoin(invalidApeOffer, param.coinOffer)
+    ).revertedWith("Offer: invalid ape offer signature");
+
+    const signedApeOffer = await signApeOffer(
+      env,
+      contracts,
+      await findPrivateKey(param.apeOffer.staker),
+      param.apeOffer
+    );
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithCoin(signedApeOffer, param.coinOffer)
+    ).not.revertedWith("Offer: invalid ape offer signature");
+  }).timeout(40000);
+
+  it("matchWithCoin: revert - validate coin offer", async () => {
+    const now = await latest();
+    const [param, withLoan, matcher] = fc.sample(
+      fc.tuple(randomMatchCoin(env, contracts, now), fc.boolean(), fc.constantFrom(...env.accounts)),
+      1
+    )[0];
+    const matchSigner = await ethers.getSigner(matcher.address);
+
+    await prepareMatch(param, withLoan);
+    await signOffers(env, contracts, matcher.address, param);
+
+    let invalidCoinOffer = { ...param.coinOffer };
+    invalidCoinOffer.staker = constants.AddressZero;
+
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(param.apeOffer, invalidCoinOffer)
+    ).revertedWith("Offer: invalid coin staker");
+
+    invalidCoinOffer = { ...param.coinOffer };
+    invalidCoinOffer.startTime = (await latest()) + 2;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(param.apeOffer, invalidCoinOffer)
+    ).revertedWith("Offer: coin offer not start");
+
+    invalidCoinOffer = { ...param.coinOffer };
+    invalidCoinOffer.endTime = (await latest()) - 2;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(param.apeOffer, invalidCoinOffer)
+    ).revertedWith("Offer: coin offer expired");
+
+    invalidCoinOffer = { ...param.coinOffer };
+    invalidCoinOffer.coinAmount = 0;
+    await expect(
+      contracts.stakeMatcher.connect(matchSigner).matchWithCoin(param.apeOffer, invalidCoinOffer)
+    ).revertedWith("Offer: coin amount can't be 0");
+
+    await signOffers(env, contracts, env.admin.address, param);
+    invalidCoinOffer = await signCoinOffer(env, contracts, await findPrivateKey(env.admin.address), param.coinOffer);
+    await expect(
+      contracts.stakeMatcher.connect(env.admin).matchWithCoin(param.apeOffer, invalidCoinOffer)
+    ).revertedWith("Offer: invalid coin offer signature");
   });
 });

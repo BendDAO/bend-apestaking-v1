@@ -11,6 +11,7 @@ task("mock:matchWithBakcAndCoin", "Mock matchWithBakcAndCoin")
   .addParam("argspath", "offers args")
   .setAction(async ({ argspath }, { ethers, network, run }) => {
     await run("set-DRE");
+    await run("compile");
     // @ts-ignore
     const keys = await import("./keys");
     const args = await import(argspath);
@@ -92,6 +93,7 @@ task("mock:matchWithBakc", "Mock matchWithBakc")
   .addParam("argspath", "offers args")
   .setAction(async ({ argspath }, { ethers, network, run }) => {
     await run("set-DRE");
+    await run("compile");
     // @ts-ignore
     const keys = await import("./keys");
     const args = await import(argspath);
@@ -155,7 +157,7 @@ task("mock:matchWithCoin", "Mock matchWithCoin")
   .addParam("argspath", "offers args")
   .setAction(async ({ argspath }, { ethers, network, run }) => {
     await run("set-DRE");
-
+    await run("compile");
     // @ts-ignore
     const keys = await import("./keys");
     const args = await import(argspath);

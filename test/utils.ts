@@ -260,46 +260,38 @@ export const randomMatchBakc = (env: Env, contracts: Contracts, nowTime: number)
 export const signOffers = async (
   env: Env,
   contracts: Contracts,
+  sender: string,
   offers: {
     apeOffer: DataTypes.ApeOfferStruct;
     bakcOffer: DataTypes.BakcOfferStruct;
     coinOffer: DataTypes.CoinOfferStruct;
   }
 ) => {
-  const apeOfferSig = await signApeOffer(
-    env,
-    contracts,
-    await findPrivateKey(await offers.apeOffer.staker),
-    offers.apeOffer
-  );
+  if (sender !== offers.apeOffer.staker) {
+    offers.apeOffer = await signApeOffer(
+      env,
+      contracts,
+      await findPrivateKey(await offers.apeOffer.staker),
+      offers.apeOffer
+    );
+  }
 
-  offers.apeOffer.r = apeOfferSig.r;
-  offers.apeOffer.s = apeOfferSig.s;
-  offers.apeOffer.v = apeOfferSig.v;
-
-  if (offers.bakcOffer.staker !== constants.AddressZero) {
-    const bakcOfferSig = await signBakcOffer(
+  if (offers.bakcOffer.staker !== constants.AddressZero && sender !== offers.bakcOffer.staker) {
+    offers.bakcOffer = await signBakcOffer(
       env,
       contracts,
       await findPrivateKey(await offers.bakcOffer.staker),
       offers.bakcOffer
     );
-    offers.bakcOffer.r = bakcOfferSig.r;
-    offers.bakcOffer.s = bakcOfferSig.s;
-    offers.bakcOffer.v = bakcOfferSig.v;
   }
 
-  if (offers.coinOffer.staker !== constants.AddressZero) {
-    const coinOfferSig = await signCoinOffer(
+  if (offers.coinOffer.staker !== constants.AddressZero && sender !== offers.coinOffer.staker) {
+    offers.coinOffer = await signCoinOffer(
       env,
       contracts,
       await findPrivateKey(await offers.coinOffer.staker),
       offers.coinOffer
     );
-
-    offers.coinOffer.r = coinOfferSig.r;
-    offers.coinOffer.s = coinOfferSig.s;
-    offers.coinOffer.v = coinOfferSig.v;
   }
 };
 
@@ -309,7 +301,13 @@ export const signApeOffer = async (
   privateKey: string,
   apeOffer: DataTypes.ApeOfferStruct
 ) => {
-  return await _signApeOffer(env.chainId, contracts.stakeMatcher.address, privateKey, apeOffer);
+  const sig = await _signApeOffer(env.chainId, contracts.stakeMatcher.address, privateKey, apeOffer);
+  return {
+    ...apeOffer,
+    r: sig.r,
+    s: sig.s,
+    v: sig.v,
+  };
 };
 
 export const _signApeOffer = async (
@@ -397,7 +395,13 @@ export const signBakcOffer = async (
   privateKey: string,
   bakcOffer: DataTypes.BakcOfferStruct
 ) => {
-  return await _signBakcOffer(env.chainId, contracts.stakeMatcher.address, privateKey, bakcOffer);
+  const sig = await _signBakcOffer(env.chainId, contracts.stakeMatcher.address, privateKey, bakcOffer);
+  return {
+    ...bakcOffer,
+    r: sig.r,
+    s: sig.s,
+    v: sig.v,
+  };
 };
 
 export const _signBakcOffer = async (
@@ -477,7 +481,13 @@ export const signCoinOffer = async (
   privateKey: string,
   coinOffer: DataTypes.CoinOfferStruct
 ) => {
-  return await _signCoinOffer(env.chainId, contracts.stakeMatcher.address, privateKey, coinOffer);
+  const sig = await _signCoinOffer(env.chainId, contracts.stakeMatcher.address, privateKey, coinOffer);
+  return {
+    ...coinOffer,
+    r: sig.r,
+    s: sig.s,
+    v: sig.v,
+  };
 };
 
 export const hashCoinOffer = async (coinOffer: DataTypes.CoinOfferStruct) => {
