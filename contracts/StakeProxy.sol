@@ -15,8 +15,6 @@ import {IStakeProxy, DataTypes, IApeCoinStaking} from "./interfaces/IStakeProxy.
 import {IBNFT} from "./interfaces/IBNFT.sol";
 import {PercentageMath} from "./libraries/PercentageMath.sol";
 
-import "hardhat/console.sol";
-
 contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC721Holder {
     using DataTypes for DataTypes.BakcStaked;
     using DataTypes for DataTypes.CoinStaked;

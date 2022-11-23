@@ -13,8 +13,6 @@ import {IStakeManager} from "./interfaces/IStakeManager.sol";
 import {ILendPoolAddressesProvider, ILendPool, ILendPoolLoan} from "./interfaces/ILendPoolAddressesProvider.sol";
 import {PercentageMath} from "./libraries/PercentageMath.sol";
 
-import "hardhat/console.sol";
-
 contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using DataTypes for DataTypes.ApeOffer;
@@ -44,7 +42,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
     IERC721Upgradeable public bakc;
     IERC20Upgradeable public apeCoin;
 
-    mapping(address => mapping(uint256 => bool)) private _isExecutedOrCancelled;
+    mapping(address => mapping(uint256 => bool)) private _isCancelled;
 
     function initialize(
         address bayc_,
@@ -84,14 +82,14 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         require(offerNonces.length > 0, "Cancel: can not be empty");
 
         for (uint256 i = 0; i < offerNonces.length; i++) {
-            _isExecutedOrCancelled[msg.sender][offerNonces[i]] = true;
+            _isCancelled[msg.sender][offerNonces[i]] = true;
         }
 
         emit OffersCanceled(msg.sender, offerNonces);
     }
 
-    function isExecutedOrCancelled(address user, uint256 offerNonce) external view returns (bool) {
-        return _isExecutedOrCancelled[user][offerNonce];
+    function isCancelled(address user, uint256 offerNonce) external view returns (bool) {
+        return _isCancelled[user][offerNonce];
     }
 
     function matchWithBakcAndCoin(
@@ -143,10 +141,6 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         );
 
         _stake(apeOffer.toStaked(), bakcOffer.toStaked(), coinOffer.toStaked());
-
-        _setNonceExecuted(apeOffer.staker, apeOffer.nonce);
-        _setNonceExecuted(bakcOffer.staker, bakcOffer.nonce);
-        _setNonceExecuted(coinOffer.staker, coinOffer.nonce);
     }
 
     function matchWithBakc(DataTypes.ApeOffer calldata apeOffer, DataTypes.BakcOffer calldata bakcOffer)
@@ -181,9 +175,6 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         );
         DataTypes.CoinStaked memory emptyCoinStaked;
         _stake(apeOffer.toStaked(), bakcOffer.toStaked(), emptyCoinStaked);
-
-        _setNonceExecuted(apeOffer.staker, apeOffer.nonce);
-        _setNonceExecuted(bakcOffer.staker, bakcOffer.nonce);
     }
 
     function matchWithCoin(DataTypes.ApeOffer calldata apeOffer, DataTypes.CoinOffer calldata coinOffer)
@@ -229,9 +220,6 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
 
         DataTypes.BakcStaked memory emptyBakcStaked;
         _stake(apeOffer.toStaked(), emptyBakcStaked, coinOffer.toStaked());
-
-        _setNonceExecuted(apeOffer.staker, apeOffer.nonce);
-        _setNonceExecuted(coinOffer.staker, coinOffer.nonce);
     }
 
     function _stake(
@@ -338,13 +326,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         if (_msgSender() == offeror) {
             return nonce == 0;
         }
-        return !_isExecutedOrCancelled[offeror][nonce];
-    }
-
-    function _setNonceExecuted(address offeror, uint256 nonce) internal {
-        if (_msgSender() != offeror) {
-            _isExecutedOrCancelled[offeror][nonce] = true;
-        }
+        return !_isCancelled[offeror][nonce];
     }
 
     function _validateOfferSignature(

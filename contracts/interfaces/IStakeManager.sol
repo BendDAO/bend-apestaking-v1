@@ -12,7 +12,7 @@ interface IStakeManager {
         DataTypes.CoinStaked coinStaked
     );
 
-    event UnStaked(address indexed proxy, address indexed staker);
+    event UnStaked(address indexed proxy);
 
     event FeePaid(address indexed payer, address indexed feeRecipient, uint256 apeCoinAmount);
     event Claimed(address indexed staker, uint256 apeCoinAmount);
@@ -23,8 +23,6 @@ interface IStakeManager {
     function claimable(IStakeProxy proxy, address staker) external view returns (uint256);
 
     function totalStaked(IStakeProxy proxy, address staker) external view returns (uint256);
-
-    function unStaked(IStakeProxy proxy, address staker) external view returns (bool);
 
     function feeRecipient() external view returns (address);
 

@@ -44,7 +44,6 @@ contract StakeManager is
     }
     NFTProxy.Proxies private _stakedProxies;
     mapping(IStakeProxy => bool) public proxies;
-    mapping(IStakeProxy => mapping(address => bool)) public override unStaked;
 
     address public override feeRecipient;
     uint256 public override fee;
@@ -172,8 +171,8 @@ contract StakeManager is
             ) = abi.decode(param, (DataTypes.ApeStaked, DataTypes.BakcStaked, DataTypes.CoinStaked));
             _stake(apeStaked, bakcStaked, coinStaked);
         } else if (FlashCall.UNSTAKE == callType) {
-            (address proxy, address staker) = abi.decode(param, (address, address));
-            _unStake(IStakeProxy(proxy), staker);
+            address proxy = abi.decode(param, (address));
+            _unStake(IStakeProxy(proxy));
         } else if (FlashCall.CLAIM == callType) {
             (address proxy, address staker) = abi.decode(param, (address, address));
             _claim(IStakeProxy(proxy), staker);
@@ -198,7 +197,9 @@ contract StakeManager is
         for (uint256 i = 0; i < _proxies.length; i++) {
             IStakeProxy proxy = IStakeProxy(_proxies[i]);
             // burn bound ape, so here unStaker is ape holder
-            _flashUnStake(proxy, proxy.apeStaked().staker);
+            if (!proxy.unStaked()) {
+                _flashUnStake(proxy);
+            }
         }
         return true;
     }
@@ -218,38 +219,22 @@ contract StakeManager is
         _flashCall(FlashCall.STAKE, apeStaked.collection, apeStaked.tokenId, param);
     }
 
-    function _flashUnStake(IStakeProxy proxy, address unStaker) internal {
-        if (!proxy.unStaked()) {
-            DataTypes.ApeStaked memory apeStaked = proxy.apeStaked();
-            bytes memory param = abi.encode(proxy, unStaker);
-            _flashCall(FlashCall.UNSTAKE, apeStaked.collection, apeStaked.tokenId, param);
-            _unlock(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
-        }
+    function unStake(IStakeProxy proxy) external override onlyStaker(proxy) nonReentrant {
+        require(!proxy.unStaked(), "StakeManager: already unStaked");
+        _flashUnStake(proxy);
     }
 
-    function unStake(IStakeProxy proxy) external override onlyStaker(proxy) nonReentrant {
-        address unStaker = _msgSender();
+    function _flashUnStake(IStakeProxy proxy) internal {
         DataTypes.ApeStaked memory apeStaked = proxy.apeStaked();
-        if (!proxy.unStaked()) {
-            bytes memory param = abi.encode(proxy, unStaker);
-            _flashCall(FlashCall.UNSTAKE, apeStaked.collection, apeStaked.tokenId, param);
-        } else {
-            _unStake(proxy, unStaker);
-        }
-
-        // unlock flashloan and withdraw ape for ape staker
-        if (_msgSender() == apeStaked.staker) {
-            _unlock(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
-        }
+        bytes memory param = abi.encode(proxy);
+        _flashCall(FlashCall.UNSTAKE, apeStaked.collection, apeStaked.tokenId, param);
+        _unlock(apeStaked.collection, apeStaked.tokenId, apeStaked.staker);
     }
 
     function claim(IStakeProxy proxy) external override onlyStaker(proxy) nonReentrant {
-        if (!proxy.unStaked()) {
-            bytes memory param = abi.encode(proxy, _msgSender());
-            _flashCall(FlashCall.CLAIM, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
-        } else {
-            _claim(proxy, _msgSender());
-        }
+        require(!proxy.unStaked(), "StakeManager: already unStaked");
+        bytes memory param = abi.encode(proxy, _msgSender());
+        _flashCall(FlashCall.CLAIM, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
     }
 
     function _flashCall(
@@ -348,34 +333,29 @@ contract StakeManager is
         }
     }
 
-    function _unStake(IStakeProxy proxy, address staker) internal {
-        require(!unStaked[proxy][staker], "StakeManager: already unStaked");
-        // unstake from proxy
-        if (!proxy.unStaked()) {
-            _unStakeProxy(proxy, staker);
-        }
+    function _withdrawAndClaim(IStakeProxy proxy, address staker) internal {
+        if (staker != address(0)) {
+            // withdraw ape coin for staker
+            uint256 amount = proxy.withdraw(staker);
+            if (amount > 0) {
+                emit Withdrawn(staker, amount);
+            }
 
-        // withdraw ape coin for staker
-        uint256 amount = proxy.withdraw(staker);
-        if (amount > 0) {
-            emit Withdrawn(staker, amount);
+            // claim rewards for staker
+            (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);
+            if (toStaker > 0) {
+                emit Claimed(staker, toStaker);
+            }
+            if (toFee > 0) {
+                emit FeePaid(staker, feeRecipient, toFee);
+            }
         }
-
-        // claim rewards for staker
-        (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);
-        if (toStaker > 0) {
-            emit Claimed(staker, toStaker);
-        }
-        if (toFee > 0) {
-            emit FeePaid(staker, feeRecipient, toFee);
-        }
-
-        unStaked[proxy][staker] = true;
     }
 
-    function _unStakeProxy(IStakeProxy proxy, address staker) internal {
+    function _unStake(IStakeProxy proxy) internal {
         DataTypes.ApeStaked memory apeStaked = proxy.apeStaked();
         DataTypes.BakcStaked memory bakcStaked = proxy.bakcStaked();
+        DataTypes.CoinStaked memory coinStaked = proxy.coinStaked();
 
         IERC721Upgradeable ape = IERC721Upgradeable(apeStaked.collection);
 
@@ -395,7 +375,12 @@ contract StakeManager is
 
         // remove staked proxy for ape
         _stakedProxies.remove(apeStaked.collection, apeStaked.tokenId, address(proxy));
-        emit UnStaked(address(proxy), staker);
+        emit UnStaked(address(proxy));
+
+        // withdraw and claim for all stakers
+        _withdrawAndClaim(proxy, apeStaked.staker);
+        _withdrawAndClaim(proxy, bakcStaked.staker);
+        _withdrawAndClaim(proxy, coinStaked.staker);
     }
 
     function _unlock(
@@ -429,9 +414,7 @@ contract StakeManager is
         IERC721Upgradeable ape = IERC721Upgradeable(apeNft);
 
         // should transfer ape to proxy if not unstaked
-        if (!proxy.unStaked()) {
-            ape.safeTransferFrom(address(this), address(proxy), apeTokenId);
-        }
+        ape.safeTransferFrom(address(this), address(proxy), apeTokenId);
 
         // claim rewards for staker
         (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);

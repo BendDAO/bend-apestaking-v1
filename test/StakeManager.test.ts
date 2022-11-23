@@ -13,6 +13,7 @@ import { parseEvents } from "./helpers/transaction-helper";
 fc.configureGlobal({
   numRuns: 10,
   endOnFailure: true,
+  markInterruptAsFailure: true,
 });
 
 /* eslint-disable no-unused-expressions */
@@ -32,7 +33,6 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     param.apeContract = await getContract("MintableERC721", param.apeStaked.collection);
     const bnft = await contracts.bnftRegistry.getBNFTAddresses(param.apeStaked.collection);
     param.boundApeContract = await getContract("IBNFT", bnft[0]);
-
     const apeStaker = await ethers.getSigner(await param.apeStaked.staker);
     let apeOwner = constants.AddressZero;
     try {
@@ -94,15 +94,37 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   const assertUnStake = async (unStaker: string, param: any) => {
     await skipHourBlocks();
 
-    const totalStaked = await contracts.stakeManager.totalStaked(param.proxy.address, unStaker);
-
-    const rewards = await param.proxy.claimable(unStaker, await contracts.stakeManager.fee());
-    const fee = (await param.proxy.claimable(unStaker, 0)).sub(rewards);
-
     const apeStaked = param.apeStaked;
     const bakcStaked = param.bakcStaked;
+    const coinStaked = param.coinStaked;
+
+    const apeStakerTotalStaked = await contracts.stakeManager.totalStaked(param.proxy.address, apeStaked.staker);
+    const bakcStakerTotalStaked = await contracts.stakeManager.totalStaked(param.proxy.address, bakcStaked.staker);
+    const coinStakerTotalStaked = await contracts.stakeManager.totalStaked(param.proxy.address, coinStaked.staker);
+
+    const fee = await contracts.stakeManager.fee();
+
+    const apeStakerRewards = await param.proxy.claimable(apeStaked.staker, fee);
+    const apeStakerFee = (await param.proxy.claimable(apeStaked.staker, 0)).sub(apeStakerRewards);
+
+    const bakcStakerRewards = await param.proxy.claimable(bakcStaked.staker, fee);
+    const bakcStakerFee = (await param.proxy.claimable(bakcStaked.staker, 0)).sub(bakcStakerRewards);
+
+    const coinStakerRewards = await param.proxy.claimable(coinStaked.staker, fee);
+    const coinStakerFee = (await param.proxy.claimable(coinStaked.staker, 0)).sub(coinStakerRewards);
+
+    let toFee = apeStakerFee;
+
+    if (apeStaked.staker !== bakcStaked.staker) {
+      toFee = toFee.add(bakcStakerFee);
+    }
+    if (bakcStaked.staker !== coinStaked.staker && apeStaked.staker !== coinStaked.staker) {
+      toFee = toFee.add(coinStakerFee);
+    }
+
     const unStakerSigner = await ethers.getSigner(unStaker);
     let beoundApeMinter = constants.AddressZero;
+
     try {
       beoundApeMinter = await param.boundApeContract.minterOf(apeStaked.tokenId);
     } catch (error) {}
@@ -111,58 +133,53 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     // assert ape coin balances
     await expect(contracts.stakeManager.connect(unStakerSigner).unStake(param.proxy.address)).changeTokenBalances(
       contracts.apeCoin,
-      [unStaker, await contracts.stakeManager.feeRecipient()],
-      [totalStaked.add(rewards), fee]
+      [apeStaked.staker, bakcStaked.staker, coinStaked.staker, await contracts.stakeManager.feeRecipient()],
+      [
+        apeStakerTotalStaked.add(apeStakerRewards),
+        bakcStakerTotalStaked.add(bakcStakerRewards),
+        coinStakerTotalStaked.add(coinStakerRewards),
+        toFee,
+      ]
     );
     expect(await contracts.stakeManager.totalStaked(param.proxy.address, unStaker)).eq(0);
-
-    expect(await contracts.stakeManager.unStaked(param.proxy.address, unStaker)).to.be.true;
 
     // assert staked proxy removed
     const stakedProxies = await contracts.stakeManager.getStakedProxies(apeStaked.collection, apeStaked.tokenId);
     expect(stakedProxies).to.not.contains(param.proxy.address);
 
-    // assert bnft interceptor cleared, flashloan unlocked
-    const apeUnStaked = await contracts.stakeManager.unStaked(param.proxy.address, apeStaked.staker);
-    if (apeUnStaked) {
-      const allProxiesUnStaked = stakedProxies.length === 0;
-      if (withLoan) {
-        expect(
-          await param.boundApeContract.isFlashLoanLocked(
-            apeStaked.tokenId,
-            contracts.lendPoolLoan.address,
-            contracts.stakeManager.address
-          )
-        ).to.eq(!allProxiesUnStaked);
-        if (allProxiesUnStaked) {
-          expect(await contracts.lendPoolLoan.getLoanRepaidInterceptors(apeStaked.collection, apeStaked.tokenId)).to.be
-            .empty;
-        }
-        expect(await param.apeContract.ownerOf(apeStaked.tokenId)).to.eq(param.boundApeContract.address);
+    const allProxiesUnStaked = stakedProxies.length === 0;
+    if (withLoan) {
+      expect(
+        await param.boundApeContract.isFlashLoanLocked(
+          apeStaked.tokenId,
+          contracts.lendPoolLoan.address,
+          contracts.stakeManager.address
+        )
+      ).to.eq(!allProxiesUnStaked);
+      if (allProxiesUnStaked) {
+        expect(await contracts.lendPoolLoan.getLoanRepaidInterceptors(apeStaked.collection, apeStaked.tokenId)).to.be
+          .empty;
+      }
+      expect(await param.apeContract.ownerOf(apeStaked.tokenId)).to.eq(param.boundApeContract.address);
+    } else {
+      expect(
+        await param.boundApeContract.isFlashLoanLocked(
+          apeStaked.tokenId,
+          contracts.stakeManager.address,
+          contracts.stakeManager.address
+        )
+      ).to.eq(!allProxiesUnStaked);
+      // check ape owner
+      if (allProxiesUnStaked) {
+        expect(await param.apeContract.ownerOf(apeStaked.tokenId)).to.eq(apeStaked.staker);
       } else {
-        expect(
-          await param.boundApeContract.isFlashLoanLocked(
-            apeStaked.tokenId,
-            contracts.stakeManager.address,
-            contracts.stakeManager.address
-          )
-        ).to.eq(!allProxiesUnStaked);
-        // check ape owner
-        if (allProxiesUnStaked) {
-          expect(await param.apeContract.ownerOf(apeStaked.tokenId)).to.eq(apeStaked.staker);
-        } else {
-          expect(await param.apeContract.ownerOf(apeStaked.tokenId)).to.eq(param.boundApeContract.address);
-        }
+        expect(await param.apeContract.ownerOf(apeStaked.tokenId)).to.eq(param.boundApeContract.address);
       }
     }
 
     // check bakc owner
     if (param.poolId === 3) {
-      if (await contracts.stakeManager.unStaked(param.proxy.address, bakcStaked.staker)) {
-        expect(await contracts.bakc.ownerOf(bakcStaked.tokenId)).to.eq(bakcStaked.staker);
-      } else {
-        expect(await contracts.bakc.ownerOf(bakcStaked.tokenId)).to.eq(param.proxy.address);
-      }
+      expect(await contracts.bakc.ownerOf(bakcStaked.tokenId)).to.eq(bakcStaked.staker);
     }
     // check ape coin
     expect(await contracts.apeCoin.balanceOf(contracts.stakeManager.address)).to.be.eq(0);
@@ -631,30 +648,23 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     );
   });
 
-  it("unStake: revert - unStake twice, same proxy, same staker", async () => {
+  it("unStake: revert - unStake twice, same proxy", async () => {
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
         const randomUnStaker = fc.constantFrom(...v.stakers);
         return fc.tuple(fc.constant(v), randomWithLoan, randomUnStaker);
       });
     };
-    await fc.assert(
-      fc
-        .asyncProperty(randomParams(), async (v) => {
-          const [param, withLoan, unStaker1] = v;
-          await prepareStake(param, withLoan);
-          await doStake(param);
-          await assertUnStake(unStaker1, param);
 
-          await expect(
-            contracts.stakeManager.connect(await ethers.getSigner(unStaker1)).unStake((param as any).proxy.address)
-          ).revertedWith("StakeManager: already unStaked");
-        })
-        .beforeEach(async () => {
-          await snapshots.revert("init");
-        }),
-      { numRuns: 10 }
-    );
+    for (const [param, withLoan, unStaker1] of fc.sample(randomParams(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+      await assertUnStake(unStaker1, param);
+      await expect(
+        contracts.stakeManager.connect(await ethers.getSigner(unStaker1)).unStake((param as any).proxy.address)
+      ).revertedWith("StakeManager: already unStaked");
+    }
   });
 
   it("unStake: unStake twice, different proxy with same ape", async () => {
@@ -689,26 +699,20 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
           );
         });
     };
-    await fc.assert(
-      fc
-        .asyncProperty(randomParams(), async (v) => {
-          const [withLoan, param1, unStaker1, param2, unStaker2, times] = v;
-          await prepareStake(param1, withLoan);
-          await doStake(param1);
-          await prepareStake(param2, withLoan);
-          await doStake(param2);
-          await increaseTo(BigNumber.from(times[0]));
-          await advanceBlock();
-          await assertUnStake(unStaker1, param1);
-          await increaseTo(BigNumber.from(times[1]));
-          await advanceBlock();
-          await assertUnStake(unStaker2, param2);
-        })
-        .beforeEach(async () => {
-          await snapshots.revert("init");
-        }),
-      { numRuns: 10 }
-    );
+
+    for (const [withLoan, param1, unStaker1, param2, unStaker2, times] of fc.sample(randomParams(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param1, withLoan);
+      await doStake(param1);
+      await prepareStake(param2, withLoan);
+      await doStake(param2);
+      await increaseTo(BigNumber.from(times[0]));
+      await advanceBlock();
+      await assertUnStake(unStaker1, param1);
+      await increaseTo(BigNumber.from(times[1]));
+      await advanceBlock();
+      await assertUnStake(unStaker2, param2);
+    }
   }).timeout(40000);
 
   it("unStake: unStake by all staker, same proxy", async () => {
@@ -724,25 +728,24 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       });
     };
 
-    await fc.assert(
-      fc
-        .asyncProperty(randomParams(), async (v) => {
-          const [param, withLoan, times] = v;
-          await prepareStake(param, withLoan);
-          await doStake(param);
-          let index = 0;
-          for (const staker of param.stakers) {
-            await increaseTo(BigNumber.from(times[index]));
-            await advanceBlock();
-            await assertUnStake(staker, param);
-            index += 1;
-          }
-        })
-        .beforeEach(async () => {
-          await snapshots.revert("init");
-        }),
-      { numRuns: 10 }
-    );
+    for (const [param, withLoan, times] of fc.sample(randomParams(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+      let index = 0;
+      for (const staker of param.stakers) {
+        await increaseTo(BigNumber.from(times[index]));
+        await advanceBlock();
+        if (index === 0) {
+          await assertUnStake(staker, param);
+        } else {
+          await expect(
+            contracts.stakeManager.connect(await ethers.getSigner(staker)).unStake((param as any).proxy.address)
+          ).revertedWith("StakeManager: already unStaked");
+        }
+        index += 1;
+      }
+    }
   });
 
   it("claim: claim by all staker before unStake, same proxy", async () => {
@@ -751,40 +754,6 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
         const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
-        const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
-          return t[0] < t[1] && Math.abs(t[0] - t[1]) > 100 && t[1] < t[2] && Math.abs(t[1] - t[2]) > 100;
-        });
-        return fc.tuple(fc.constant(v), randomWithLoan, randomTimes);
-      });
-    };
-
-    await fc.assert(
-      fc
-        .asyncProperty(randomParams(), async (v) => {
-          const [param, withLoan, times] = v;
-          await prepareStake(param, withLoan);
-          await doStake(param);
-          let index = 0;
-          for (const staker of param.stakers) {
-            await increaseTo(BigNumber.from(times[index]));
-            await advanceBlock();
-            await assertClaim(staker, param);
-            index += 1;
-          }
-        })
-        .beforeEach(async () => {
-          await snapshots.revert("init");
-        }),
-      { numRuns: 10 }
-    );
-  });
-
-  it("claim: claim by all staker over unStake, same proxy", async () => {
-    const now = await latest();
-    const randomParams = () => {
-      return randomStake(env, contracts).chain((v) => {
-        const times = getPoolTime(v.poolId);
-        const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
 
         const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
           return t[0] < t[1] && Math.abs(t[0] - t[1]) > 100 && t[1] < t[2] && Math.abs(t[1] - t[2]) > 100;
@@ -793,77 +762,50 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       });
     };
 
-    await fc.assert(
-      fc
-        .asyncProperty(randomParams(), async (v) => {
-          const [param, withLoan, times] = v;
-          await prepareStake(param, withLoan);
-          await doStake(param);
-          let index = 0;
-          let unStake = false;
-          for (const staker of param.stakers) {
-            await increaseTo(BigNumber.from(times[index]));
-            await advanceBlock();
-            await assertClaim(staker, param);
-            index += 1;
-            if (!unStake) {
-              await assertUnStake(staker, param);
-              unStake = true;
-            }
-          }
-        })
-        .beforeEach(async () => {
-          await snapshots.revert("init");
-        }),
-      { numRuns: 10 }
-    );
+    for (const [param, withLoan, times] of fc.sample(randomParams(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+      let index = 0;
+      for (const staker of param.stakers) {
+        await increaseTo(BigNumber.from(times[index]));
+        await advanceBlock();
+        await assertClaim(staker, param);
+        index += 1;
+      }
+    }
   }).timeout(40000);
 
-  it("claim: claim twice after unStake, same proxy, same staker", async () => {
+  it("claim: claim after unStake, same proxy", async () => {
     const now = await latest();
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
         const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
-        const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
-          return t[0] < t[1] && Math.abs(t[0] - t[1]) > 100 && t[1] < t[2] && Math.abs(t[1] - t[2]) > 100;
-        });
         return fc.tuple(
           fc.constant(v),
           randomWithLoan,
-          randomTimes,
+          randomTime,
           fc.constantFrom(...v.stakers),
           fc.constantFrom(...v.stakers)
         );
       });
     };
 
-    await fc.assert(
-      fc
-        .asyncProperty(randomParams(), async (v) => {
-          const [param, withLoan, times, staker1, staker2] = v;
-          await prepareStake(param, withLoan);
-          await doStake(param);
+    for (const [param, withLoan, time, unStaker, claimer] of fc.sample(randomParams(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
 
-          await increaseTo(BigNumber.from(times[0]));
-          await advanceBlock();
-          await skipHourBlocks();
-          await assertUnStake(staker1, param);
+      await increaseTo(BigNumber.from(time));
+      await advanceBlock();
+      await skipHourBlocks();
+      await assertUnStake(unStaker, param);
 
-          await increaseTo(BigNumber.from(times[1]));
-          await advanceBlock();
-          await skipHourBlocks();
-          await assertClaim(staker2, param);
-
-          await expect(
-            contracts.stakeManager.connect(await ethers.getSigner(staker2)).claim((param as any).proxy.address)
-          ).changeTokenBalances(contracts.apeCoin, [staker2, await contracts.stakeManager.feeRecipient()], [0, 0]);
-        })
-        .beforeEach(async () => {
-          await snapshots.revert("init");
-        }),
-      { numRuns: 10 }
-    );
+      await expect(
+        contracts.stakeManager.connect(await ethers.getSigner(claimer)).claim((param as any).proxy.address)
+      ).revertedWith("StakeManager: already unStaked");
+    }
   });
 
   it("borrowETH: revert - borrowETH with bnft not own", async () => {
@@ -939,69 +881,57 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
         const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
-        return fc.tuple(fc.constant(v), randomTime);
+        const randomUnStaker = fc.constantFrom(...v.stakers);
+        return fc.tuple(fc.constant(v), randomTime, randomUnStaker);
       });
     };
 
-    await fc.assert(
-      fc
-        .asyncProperty(randomParams(), async (v) => {
-          const [param, time] = v;
+    for (const [param, time, unStaker] of fc.sample(randomParams(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, false);
+      await doStake(param);
 
-          await prepareStake(param, false);
-          await doStake(param);
+      await increaseTo(BigNumber.from(time));
+      await advanceBlock();
 
-          await increaseTo(BigNumber.from(time));
-          await advanceBlock();
+      const proxy = (param as any).proxy;
+      const apeStaked = await proxy.apeStaked();
+      const bakcStaked = await proxy.bakcStaked();
+      const coinStaked = await proxy.coinStaked();
 
-          const proxy = (param as any).proxy;
-          const apeStaked = await proxy.apeStaked();
-          const bakcStaked = await proxy.bakcStaked();
-          const coinStaked = await proxy.coinStaked();
+      const stakerSigner = await ethers.getSigner(apeStaked.staker);
 
-          const stakerSigner = await ethers.getSigner(apeStaked.staker);
+      await contracts.debtWETH
+        .connect(stakerSigner)
+        .approveDelegation(contracts.stakeManager.address, constants.MaxUint256);
 
-          await contracts.debtWETH
-            .connect(stakerSigner)
-            .approveDelegation(contracts.stakeManager.address, constants.MaxUint256);
+      await skipHourBlocks();
 
-          await skipHourBlocks();
+      const apeClaimable = await contracts.stakeManager.claimable(proxy.address, apeStaked.staker);
+      const bakcClaimable = await contracts.stakeManager.claimable(proxy.address, bakcStaked.staker);
+      const coinClaimable = await contracts.stakeManager.claimable(proxy.address, coinStaked.staker);
 
-          const apeClaimable = await contracts.stakeManager.claimable(proxy.address, apeStaked.staker);
-          const bakcClaimable = await contracts.stakeManager.claimable(proxy.address, bakcStaked.staker);
-          const coinClaimable = await contracts.stakeManager.claimable(proxy.address, coinStaked.staker);
+      const apeTotalStaked = await contracts.stakeManager.totalStaked(proxy.address, apeStaked.staker);
+      const bakcTotalStaked = await contracts.stakeManager.totalStaked(proxy.address, bakcStaked.staker);
+      const coinTotalStake = await contracts.stakeManager.totalStaked(proxy.address, coinStaked.staker);
 
-          const apeTotalStaked = await contracts.stakeManager.totalStaked(proxy.address, apeStaked.staker);
-          const bakcTotalStaked = await contracts.stakeManager.totalStaked(proxy.address, bakcStaked.staker);
-          const coinTotalStake = await contracts.stakeManager.totalStaked(proxy.address, coinStaked.staker);
+      const amount = makeBN18("0.001");
+      const preDebt = await contracts.debtWETH.balanceOf(apeStaked.staker);
+      await expect(
+        contracts.stakeManager.connect(stakerSigner).borrowETH(amount, apeStaked.collection, apeStaked.tokenId)
+      ).changeEtherBalance(apeStaked.staker, amount);
+      const debtDiff = (await contracts.debtWETH.balanceOf(apeStaked.staker)).sub(preDebt);
+      expect(debtDiff).closeTo(amount, amount.div(10000));
 
-          const amount = makeBN18("0.001");
-          const preDebt = await contracts.debtWETH.balanceOf(apeStaked.staker);
-          await expect(
-            contracts.stakeManager.connect(stakerSigner).borrowETH(amount, apeStaked.collection, apeStaked.tokenId)
-          ).changeEtherBalance(apeStaked.staker, amount);
-          const debtDiff = (await contracts.debtWETH.balanceOf(apeStaked.staker)).sub(preDebt);
-          expect(debtDiff).closeTo(amount, amount.div(10000));
+      expect(await contracts.stakeManager.claimable(proxy.address, apeStaked.staker)).eq(apeClaimable);
+      expect(await contracts.stakeManager.claimable(proxy.address, bakcStaked.staker)).eq(bakcClaimable);
+      expect(await contracts.stakeManager.claimable(proxy.address, coinStaked.staker)).eq(coinClaimable);
 
-          expect(await contracts.stakeManager.claimable(proxy.address, apeStaked.staker)).eq(apeClaimable);
-          expect(await contracts.stakeManager.claimable(proxy.address, bakcStaked.staker)).eq(bakcClaimable);
-          expect(await contracts.stakeManager.claimable(proxy.address, coinStaked.staker)).eq(coinClaimable);
+      expect(await contracts.stakeManager.totalStaked(proxy.address, apeStaked.staker)).eq(apeTotalStaked);
+      expect(await contracts.stakeManager.totalStaked(proxy.address, bakcStaked.staker)).eq(bakcTotalStaked);
+      expect(await contracts.stakeManager.totalStaked(proxy.address, coinStaked.staker)).eq(coinTotalStake);
 
-          expect(await contracts.stakeManager.totalStaked(proxy.address, apeStaked.staker)).eq(apeTotalStaked);
-          expect(await contracts.stakeManager.totalStaked(proxy.address, bakcStaked.staker)).eq(bakcTotalStaked);
-          expect(await contracts.stakeManager.totalStaked(proxy.address, coinStaked.staker)).eq(coinTotalStake);
-
-          for (const staker of (param as any).stakers) {
-            await assertUnStake(staker, param);
-            expect(await (param as any).apeContract.ownerOf(apeStaked.tokenId)).to.eq(
-              (param as any).boundApeContract.address
-            );
-          }
-        })
-        .beforeEach(async () => {
-          await snapshots.revert("init");
-        }),
-      { numRuns: 10 }
-    );
+      await assertUnStake(unStaker, param);
+    }
   }).timeout(40000);
 });
