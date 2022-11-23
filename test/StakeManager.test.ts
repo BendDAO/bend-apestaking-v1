@@ -185,20 +185,28 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     expect(await contracts.apeCoin.balanceOf(contracts.stakeManager.address)).to.be.eq(0);
   };
 
-  const assertClaim = async (claimer: string, param: any) => {
+  const assertClaim = async (claimer: string, param: any, claimFor = false) => {
     await skipHourBlocks();
 
     const rewards = await param.proxy.claimable(claimer, await contracts.stakeManager.fee());
     const fee = (await param.proxy.claimable(claimer, 0)).sub(rewards);
 
-    const claimerSigner = await ethers.getSigner(claimer);
-
     // assert ape coin balances
-    await expect(contracts.stakeManager.connect(claimerSigner).claim(param.proxy.address)).changeTokenBalances(
-      contracts.apeCoin,
-      [claimer, await contracts.stakeManager.feeRecipient()],
-      [rewards, fee]
-    );
+    if (claimFor) {
+      await expect(contracts.stakeManager.claimFor(param.proxy.address, claimer)).changeTokenBalances(
+        contracts.apeCoin,
+        [claimer, await contracts.stakeManager.feeRecipient()],
+        [rewards, fee]
+      );
+    } else {
+      const claimerSigner = await ethers.getSigner(claimer);
+      await expect(contracts.stakeManager.connect(claimerSigner).claim(param.proxy.address)).changeTokenBalances(
+        contracts.apeCoin,
+        [claimer, await contracts.stakeManager.feeRecipient()],
+        [rewards, fee]
+      );
+    }
+
     // check ape coin
     expect(await contracts.apeCoin.balanceOf(contracts.stakeManager.address)).to.be.eq(0);
   };
@@ -402,23 +410,74 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   });
 
   it("onlyStaker: revertions work as expected", async () => {
+    await expect(contracts.stakeManager.claim(constants.AddressZero)).to.be.revertedWith("StakeManager: invalid proxy");
+    const [param, withLoan] = fc.sample(fc.tuple(randomStake(env, contracts), randomWithLoan), 1)[0];
+    await prepareStake(param, withLoan);
+    await doStake(param);
+    const proxy = (param as any).proxy;
+    await expect(contracts.stakeManager.claim(proxy.address)).to.be.revertedWith("StakeManager: invalid caller");
+  });
+
+  it("onlyStakerOrOperator: revertions work as expected", async () => {
     await expect(contracts.stakeManager.unStake(constants.AddressZero)).to.be.revertedWith(
       "StakeManager: invalid proxy"
     );
 
-    await expect(contracts.stakeManager.claim(constants.AddressZero)).to.be.revertedWith("StakeManager: invalid proxy");
+    const randomParam = () => {
+      return randomStake(env, contracts).chain((v) => {
+        return fc.tuple(
+          fc.constant(v),
+          randomWithLoan,
+          fc.constantFrom(...env.accounts).filter((account) => {
+            return (
+              account.address !== v.apeStaked.staker &&
+              account.address !== v.bakcStaked.staker &&
+              account.address !== v.coinStaked.staker
+            );
+          })
+        );
+      });
+    };
+    for (const [param, withLoan, unStaker] of fc.sample(randomParam(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+      const proxy = (param as any).proxy;
+      await expect(contracts.stakeManager.connect(unStaker).unStake(proxy.address)).to.be.revertedWith(
+        "StakeManager: invalid caller"
+      );
+    }
+  });
 
-    await fc.assert(
-      fc.asyncProperty(randomStake(env, contracts), randomWithLoan, async (param, withLoan) => {
-        await prepareStake(param, withLoan);
-        await doStake(param);
-        const proxy = (param as any).proxy;
-        await expect(contracts.stakeManager.unStake(proxy.address)).to.be.revertedWith("StakeManager: invalid caller");
-
-        await expect(contracts.stakeManager.claim(proxy.address)).to.be.revertedWith("StakeManager: invalid caller");
-      }),
-      { numRuns: 1 }
+  it("onlySpecifiedStaker: revertions work as expected", async () => {
+    await expect(contracts.stakeManager.claimFor(constants.AddressZero, constants.AddressZero)).to.be.revertedWith(
+      "StakeManager: invalid proxy"
     );
+    const randomParam = () => {
+      return randomStake(env, contracts).chain((v) => {
+        return fc.tuple(
+          fc.constant(v),
+          randomWithLoan,
+          fc.constantFrom(...env.accounts).filter((account) => {
+            return (
+              account.address !== v.apeStaked.staker &&
+              account.address !== v.bakcStaked.staker &&
+              account.address !== v.coinStaked.staker
+            );
+          })
+        );
+      });
+    };
+
+    for (const [param, withLoan, claimFor] of fc.sample(randomParam(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+      const proxy = (param as any).proxy;
+      await expect(contracts.stakeManager.claimFor(proxy.address, claimFor.address)).to.be.revertedWith(
+        "StakeManager: invalid caller"
+      );
+    }
   });
 
   it("onlyProxy: revertions work as expected", async () => {
@@ -748,6 +807,39 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     }
   });
 
+  it("approveOperator & revokeOperator: work as expected", async () => {
+    const randomParam = () => {
+      return randomStake(env, contracts).chain((v) => {
+        return fc.tuple(
+          fc.constant(v),
+          randomWithLoan,
+          fc.constantFrom(...v.stakers),
+          fc.constantFrom(...env.accounts).filter((account) => {
+            return (
+              account.address !== v.apeStaked.staker &&
+              account.address !== v.bakcStaked.staker &&
+              account.address !== v.coinStaked.staker
+            );
+          })
+        );
+      });
+    };
+    for (const [param, withLoan, staker, operator] of fc.sample(randomParam(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+      const proxy = (param as any).proxy;
+      await expect(contracts.stakeManager.connect(operator).unStake(proxy.address)).to.be.revertedWith(
+        "StakeManager: invalid caller"
+      );
+      await contracts.stakeManager.connect(await ethers.getSigner(staker)).approveOperator(operator.address);
+      expect(await contracts.stakeManager.isApproved(staker, operator.address)).be.true;
+      await expect(contracts.stakeManager.connect(operator).unStake(proxy.address)).not.reverted;
+      await contracts.stakeManager.connect(await ethers.getSigner(staker)).revokeOperator();
+      expect(await contracts.stakeManager.isApproved(staker, operator.address)).be.false;
+    }
+  });
+
   it("claim: claim by all staker before unStake, same proxy", async () => {
     const now = await latest();
     const randomParams = () => {
@@ -805,6 +897,66 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       await expect(
         contracts.stakeManager.connect(await ethers.getSigner(claimer)).claim((param as any).proxy.address)
       ).revertedWith("StakeManager: already unStaked");
+    }
+  });
+
+  it("claimFor: claim for all staker before unStake, same proxy", async () => {
+    const now = await latest();
+    const randomParams = () => {
+      return randomStake(env, contracts).chain((v) => {
+        const times = getPoolTime(v.poolId);
+        const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
+
+        const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
+          return t[0] < t[1] && Math.abs(t[0] - t[1]) > 100 && t[1] < t[2] && Math.abs(t[1] - t[2]) > 100;
+        });
+        return fc.tuple(fc.constant(v), randomWithLoan, randomTimes);
+      });
+    };
+
+    for (const [param, withLoan, times] of fc.sample(randomParams(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+      let index = 0;
+      for (const staker of param.stakers) {
+        await increaseTo(BigNumber.from(times[index]));
+        await advanceBlock();
+        await assertClaim(staker, param, true);
+        index += 1;
+      }
+    }
+  }).timeout(40000);
+
+  it("claimFor: claim for staker after unStake, same proxy", async () => {
+    const now = await latest();
+    const randomParams = () => {
+      return randomStake(env, contracts).chain((v) => {
+        const times = getPoolTime(v.poolId);
+        const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
+        return fc.tuple(
+          fc.constant(v),
+          randomWithLoan,
+          randomTime,
+          fc.constantFrom(...v.stakers),
+          fc.constantFrom(...v.stakers)
+        );
+      });
+    };
+
+    for (const [param, withLoan, time, unStaker, claimer] of fc.sample(randomParams(), 10)) {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+
+      await increaseTo(BigNumber.from(time));
+      await advanceBlock();
+      await skipHourBlocks();
+      await assertUnStake(unStaker, param);
+
+      await expect(contracts.stakeManager.claimFor((param as any).proxy.address, claimer)).revertedWith(
+        "StakeManager: already unStaked"
+      );
     }
   });
 

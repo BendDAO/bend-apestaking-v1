@@ -66,6 +66,8 @@ contract StakeManager is
 
     ILendPoolAddressesProvider public lendPoolAddressedProvider;
 
+    mapping(address => address) private _approvedOperators;
+
     modifier onlyMatcher() {
         require(_msgSender() == matcher, "StakeManager: caller must be matcher");
         _;
@@ -74,10 +76,36 @@ contract StakeManager is
     modifier onlyStaker(IStakeProxy proxy) {
         require(proxies[proxy], "StakeManager: invalid proxy");
         address _sender = _msgSender();
+        address apeStaker = proxy.apeStaked().staker;
+        address bakcStaker = proxy.bakcStaked().staker;
+        address coinStaker = proxy.coinStaked().staker;
+        require(_sender == apeStaker || _sender == bakcStaker || _sender == coinStaker, "StakeManager: invalid caller");
+        _;
+    }
+
+    modifier onlySpecifiedStaker(IStakeProxy proxy, address staker) {
+        require(proxies[proxy], "StakeManager: invalid proxy");
+        address apeStaker = proxy.apeStaked().staker;
+        address bakcStaker = proxy.bakcStaked().staker;
+        address coinStaker = proxy.coinStaked().staker;
+        require(staker == apeStaker || staker == bakcStaker || staker == coinStaker, "StakeManager: invalid caller");
+        _;
+    }
+
+    modifier onlyStakerOrOperator(IStakeProxy proxy) {
+        require(proxies[proxy], "StakeManager: invalid proxy");
+        address _sender = _msgSender();
+        address apeStaker = proxy.apeStaked().staker;
+        address bakcStaker = proxy.bakcStaked().staker;
+        address coinStaker = proxy.coinStaked().staker;
+
         require(
-            _sender == proxy.apeStaked().staker ||
-                _sender == proxy.bakcStaked().staker ||
-                _sender == proxy.coinStaked().staker,
+            _sender == apeStaker ||
+                _sender == bakcStaker ||
+                _sender == coinStaker ||
+                _sender == _approvedOperators[apeStaker] ||
+                _sender == _approvedOperators[bakcStaker] ||
+                _sender == _approvedOperators[coinStaker],
             "StakeManager: invalid caller"
         );
         _;
@@ -219,7 +247,15 @@ contract StakeManager is
         _flashCall(FlashCall.STAKE, apeStaked.collection, apeStaked.tokenId, param);
     }
 
-    function unStake(IStakeProxy proxy) external override onlyStaker(proxy) nonReentrant {
+    function approveOperator(address operator) external override {
+        _approvedOperators[_msgSender()] = operator;
+    }
+
+    function revokeOperator() external override {
+        delete _approvedOperators[_msgSender()];
+    }
+
+    function unStake(IStakeProxy proxy) external override onlyStakerOrOperator(proxy) nonReentrant {
         require(!proxy.unStaked(), "StakeManager: already unStaked");
         _flashUnStake(proxy);
     }
@@ -233,7 +269,21 @@ contract StakeManager is
 
     function claim(IStakeProxy proxy) external override onlyStaker(proxy) nonReentrant {
         require(!proxy.unStaked(), "StakeManager: already unStaked");
-        bytes memory param = abi.encode(proxy, _msgSender());
+        _flashClaim(proxy, _msgSender());
+    }
+
+    function claimFor(IStakeProxy proxy, address staker)
+        external
+        override
+        onlySpecifiedStaker(proxy, staker)
+        nonReentrant
+    {
+        require(!proxy.unStaked(), "StakeManager: already unStaked");
+        _flashClaim(proxy, staker);
+    }
+
+    function _flashClaim(IStakeProxy proxy, address staker) internal {
+        bytes memory param = abi.encode(proxy, staker);
         _flashCall(FlashCall.CLAIM, proxy.apeStaked().collection, proxy.apeStaked().tokenId, param);
     }
 
@@ -513,6 +563,10 @@ contract StakeManager is
 
     function getStakedProxies(address nftAsset, uint256 tokenId) external view returns (address[] memory) {
         return _stakedProxies.values(nftAsset, tokenId);
+    }
+
+    function isApproved(address staker, address operator) external view returns (bool) {
+        return _approvedOperators[staker] == operator;
     }
 
     receive() external payable {

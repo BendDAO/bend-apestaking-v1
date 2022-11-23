@@ -28,7 +28,9 @@ interface IStakeManager {
 
     function fee() external view returns (uint256);
 
-    function getCurrentApeCoinCap(uint256 poolId) external returns (uint256);
+    function getCurrentApeCoinCap(uint256 poolId) external view returns (uint256);
+
+    function isApproved(address staker, address operator) external view returns (bool);
 
     function updateFeeRecipient(address recipient) external;
 
@@ -42,9 +44,15 @@ interface IStakeManager {
         DataTypes.CoinStaked memory coinStaked
     ) external;
 
+    function approveOperator(address operator) external;
+
+    function revokeOperator() external;
+
     function unStake(IStakeProxy proxy) external;
 
     function claim(IStakeProxy proxy) external;
+
+    function claimFor(IStakeProxy proxy, address staker) external;
 
     function borrowETH(
         uint256 amount,
