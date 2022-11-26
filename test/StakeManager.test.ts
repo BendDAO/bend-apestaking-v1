@@ -6,7 +6,7 @@ import { BigNumber, constants, Contract } from "ethers";
 
 import { IStakeProxy } from "../typechain-types/contracts/interfaces/IStakeProxy";
 import { getContract, makeBN18, randomPairedStake, randomSingleStake, randomStake, skipHourBlocks } from "./utils";
-import { advanceBlock, increaseTo, latest } from "./helpers/block-traveller";
+import { advanceBlock, increaseBy, increaseTo, latest } from "./helpers/block-traveller";
 import { impersonateAccount, setBalance } from "@nomicfoundation/hardhat-network-helpers";
 import { parseEvents } from "./helpers/transaction-helper";
 
@@ -188,7 +188,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   const assertClaim = async (claimer: string, param: any, claimFor = false) => {
     await skipHourBlocks();
 
-    const rewards = await param.proxy.claimable(claimer, await contracts.stakeManager.fee());
+    const rewards = await contracts.stakeManager.claimable(param.proxy.address, claimer);
     const fee = (await param.proxy.claimable(claimer, 0)).sub(rewards);
 
     // assert ape coin balances
@@ -331,19 +331,90 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     }
   });
 
-  it("claimable: check state", async () => {
+  it("claimable & Fee: check state", async () => {
     const fee = await contracts.stakeManager.fee();
-    await fc.assert(
-      fc.asyncProperty(randomStake(env, contracts), randomWithLoan, async (param, withLoan) => {
-        await prepareStake(param, withLoan);
-        await doStake(param);
-        const proxy = (param as any).proxy;
-        for (const staker of param.stakers) {
-          expect(await contracts.stakeManager.claimable(proxy.address, staker)).eq(await proxy.claimable(staker, fee));
+
+    const assertClaimable = async (param: any, withLoan: boolean) => {
+      await snapshots.revert("init");
+      await prepareStake(param, withLoan);
+      await doStake(param);
+      await increaseBy(BigNumber.from(3600 * 24));
+      await advanceBlock();
+      let proxyFee = fee;
+      // assert fee should be zero if all staker are one user
+      if (param.poolId === 1 || param.poolId === 2) {
+        // no coin staker
+        if (param.coinStaked.staker === constants.AddressZero) {
+          proxyFee = constants.Zero;
+        } else {
+          if (param.apeStaked.staker === param.coinStaked.staker) {
+            proxyFee = constants.Zero;
+          }
         }
-      }),
-      { numRuns: 1 }
-    );
+      }
+
+      if (param.poolId === 3) {
+        // no coin staker
+        if (param.coinStaked.staker === constants.AddressZero) {
+          if (param.apeStaked.staker === param.bakcStaked.staker) {
+            proxyFee = constants.Zero;
+          }
+        } else {
+          if (
+            param.apeStaked.staker === param.coinStaked.staker &&
+            param.apeStaked.staker === param.bakcStaked.staker
+          ) {
+            proxyFee = constants.Zero;
+          }
+        }
+      }
+      const proxy = (param as any).proxy;
+      for (const staker of param.stakers) {
+        expect(await contracts.stakeManager.claimable(proxy.address, staker)).eq(
+          await proxy.claimable(staker, proxyFee)
+        );
+      }
+    };
+    const case1 = fc.sample(
+      fc.tuple(
+        randomPairedStake(env, contracts).filter((v) => {
+          return v.apeStaked.staker === v.bakcStaked.staker && v.apeStaked.staker === v.coinStaked.staker;
+        }),
+        randomWithLoan
+      ),
+      1
+    )[0];
+    const case2 = fc.sample(
+      fc.tuple(
+        randomPairedStake(env, contracts).filter((v) => {
+          return v.apeStaked.staker === v.bakcStaked.staker && constants.AddressZero === v.coinStaked.staker;
+        }),
+        randomWithLoan
+      ),
+      1
+    )[0];
+    for (const [param, withLoan] of fc.sample(fc.tuple(randomPairedStake(env, contracts), randomWithLoan), {
+      examples: [case1, case2],
+      numRuns: 10,
+    })) {
+      await assertClaimable(param, withLoan);
+    }
+
+    const case3 = fc.sample(
+      fc.tuple(
+        randomSingleStake(env, contracts).filter((v) => {
+          return constants.AddressZero !== v.coinStaked.staker && v.apeStaked.staker === v.coinStaked.staker;
+        }),
+        randomWithLoan
+      ),
+      1
+    )[0];
+    for (const [param, withLoan] of fc.sample(fc.tuple(randomSingleStake(env, contracts), randomWithLoan), {
+      examples: [case3],
+      numRuns: 10,
+    })) {
+      await assertClaimable(param, withLoan);
+    }
   });
 
   it("initialized: check init state and revert if reInit", async () => {
@@ -1032,7 +1103,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
-        const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
+        const randomTime = fc.integer({ min: Math.max(now + 200, times[0]), max: times[1] });
         const randomUnStaker = fc.constantFrom(...v.stakers);
         return fc.tuple(fc.constant(v), randomTime, randomUnStaker);
       });

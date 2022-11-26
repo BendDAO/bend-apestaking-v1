@@ -366,7 +366,7 @@ contract StakeManager is
             // BNFT owner must be ape staker
             require(boundApeOwner == lockFor, "StakeManager: not bound ape owner");
 
-            // if BNFT minter is lend poll, lock flashloan and add interceptor
+            // if BNFT minter is lend pool, lock flashloan and add interceptor
             if (boundApeMinter == address(poolLoan)) {
                 poolLoan.setFlashLoanLocking(apeAsset, apeTokenId, true);
                 poolLoan.addLoanRepaidInterceptor(apeAsset, apeTokenId);
@@ -425,6 +425,7 @@ contract StakeManager is
 
         // remove staked proxy for ape
         _stakedProxies.remove(apeStaked.collection, apeStaked.tokenId, address(proxy));
+
         emit UnStaked(address(proxy));
 
         // withdraw and claim for all stakers
@@ -467,7 +468,8 @@ contract StakeManager is
         ape.safeTransferFrom(address(this), address(proxy), apeTokenId);
 
         // claim rewards for staker
-        (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);
+        uint256 _fee = _getFee(proxy);
+        (uint256 toStaker, uint256 toFee) = proxy.claim(staker, _fee, feeRecipient);
 
         if (toStaker > 0) {
             emit Claimed(staker, toStaker);
@@ -539,7 +541,7 @@ contract StakeManager is
     }
 
     function claimable(IStakeProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256) {
-        return proxy.claimable(staker, fee);
+        return proxy.claimable(staker, _getFee(proxy));
     }
 
     function totalStaked(IStakeProxy proxy, address staker) external view onlyProxy(proxy) returns (uint256 amount) {
@@ -559,6 +561,37 @@ contract StakeManager is
                 amount += coinStaked.coinAmount;
             }
         }
+    }
+
+    // fee should be zero if all nft and ape coin come from one user
+    function _getFee(IStakeProxy proxy) internal view returns (uint256) {
+        uint256 poolId = proxy.poolId();
+        address apeStaker = proxy.apeStaked().staker;
+        address bakcStaker = proxy.bakcStaked().staker;
+        address coinStaker = proxy.coinStaked().staker;
+        // single ape pool
+        if (poolId == DataTypes.BAYC_POOL_ID || poolId == DataTypes.MAYC_POOL_ID) {
+            // same ape & coin staker or no coin staker
+            if (coinStaker == address(0) || apeStaker == coinStaker) {
+                return 0;
+            }
+        }
+        // paired bakc pool
+        if (poolId == DataTypes.BAKC_POOL_ID) {
+            if (coinStaker == address(0)) {
+                // same ape & bakc staker, no coin staker
+                if (apeStaker == bakcStaker) {
+                    return 0;
+                }
+            } else {
+                // same ape & bakc & coin staker
+                if (apeStaker == bakcStaker && apeStaker == coinStaker) {
+                    return 0;
+                }
+            }
+        }
+        // any other case
+        return fee;
     }
 
     function getStakedProxies(address nftAsset, uint256 tokenId) external view returns (address[] memory) {

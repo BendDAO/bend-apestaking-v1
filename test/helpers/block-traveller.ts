@@ -52,6 +52,16 @@ export async function increaseTo(targetTime: BigNumber): Promise<void> {
 }
 
 /**
+ * Advance the block time
+ * @param targetTime target time (epoch)
+ * @dev If target time is lower/equal to current time, it throws an error
+ */
+export async function increaseBy(targetTime: BigNumber): Promise<void> {
+  const currentTime = BigNumber.from(await latest());
+  await network.provider.send("evm_setNextBlockTimestamp", [currentTime.add(targetTime).toHexString()]);
+}
+
+/**
  * Fetch the current block number
  */
 export async function latest(): Promise<number> {
