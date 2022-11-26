@@ -188,7 +188,6 @@ makeSuite("BendStakeMatcher", (contracts: Contracts, env: Env, snapshots: Snapsh
     );
     expect(await (contracts.stakeMatcher as Contract).boundBayc()).to.eq(contracts.bBayc.address);
     expect(await (contracts.stakeMatcher as Contract).boundMayc()).to.eq(contracts.bMayc.address);
-    expect(await (contracts.stakeMatcher as Contract).owner()).to.eq(env.admin.address);
 
     await expect(
       (contracts.stakeMatcher as Contract)

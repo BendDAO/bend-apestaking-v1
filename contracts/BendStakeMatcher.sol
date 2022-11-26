@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.9;
 
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {SignatureCheckerUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/SignatureCheckerUpgradeable.sol";
 import {ECDSAUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
@@ -13,7 +12,7 @@ import {IStakeManager} from "./interfaces/IStakeManager.sol";
 import {ILendPoolAddressesProvider, ILendPool, ILendPoolLoan} from "./interfaces/ILendPoolAddressesProvider.sol";
 import {PercentageMath} from "./libraries/PercentageMath.sol";
 
-contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract BendStakeMatcher is IStakeMatcher, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using DataTypes for DataTypes.ApeOffer;
     using DataTypes for DataTypes.BakcOffer;
@@ -54,7 +53,6 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         address stakeManager_,
         address lendPoolAddressedProvider_
     ) external initializer {
-        __Ownable_init();
         __ReentrancyGuard_init();
 
         bayc = IERC721Upgradeable(bayc_);
@@ -111,6 +109,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         if (apeOffer.bakcOfferee != address(0)) {
             require(apeOffer.bakcOfferee == bakcOffer.staker, "ApeOffer: bakc offeree mismatch");
         }
+
         if (apeOffer.coinOfferee != address(0)) {
             require(apeOffer.coinOfferee == coinOffer.staker, "ApeOffer: coin offeree mismatch");
         }
@@ -323,7 +322,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
     }
 
     function _validateOfferNonce(address offeror, uint256 nonce) internal view returns (bool) {
-        if (_msgSender() == offeror) {
+        if (msg.sender == offeror) {
             return nonce == 0;
         }
         return !_isCancelled[offeror][nonce];
@@ -336,7 +335,7 @@ contract BendStakeMatcher is IStakeMatcher, OwnableUpgradeable, ReentrancyGuardU
         bytes32 s,
         uint8 v
     ) internal view returns (bool) {
-        if (_msgSender() == signer) {
+        if (msg.sender == signer) {
             return true;
         }
         return
