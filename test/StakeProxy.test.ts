@@ -136,12 +136,6 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     await snapshots.revert(lastRevert);
   });
 
-  it("Revert - Receive ETH not allowed", async () => {
-    await expect(env.admin.sendTransaction({ to: contracts.stakeProxy.address, value: makeBN18(1) })).to.revertedWith(
-      "Receive ETH not allowed"
-    );
-  });
-
   it("onlyOwner: revertions work as expected", async () => {
     const param = fc.sample(randomStake(env, contracts), 1)[0];
     await expect(
@@ -159,13 +153,13 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     await expect(
       contracts.stakeProxy
         .connect(env.accounts[1])
-        .withdrawERC20Emergency(constants.AddressZero, constants.AddressZero, constants.Zero)
+        .migrateERC20(constants.AddressZero, constants.AddressZero, constants.Zero)
     ).to.be.revertedWith("Ownable: caller is not the owner");
 
     await expect(
       contracts.stakeProxy
         .connect(env.accounts[1])
-        .withdrawERC721Emergency(constants.AddressZero, constants.AddressZero, constants.Zero)
+        .migrateERC721(constants.AddressZero, constants.AddressZero, constants.Zero)
     ).to.be.revertedWith("Ownable: caller is not the owner");
   });
 
@@ -179,10 +173,10 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     await expect(contracts.stakeProxy.withdraw(env.admin.address)).to.be.revertedWith("StakeProxy: not valid staker");
   });
 
-  it("withdrawERC20Emergency", async () => {
+  it("migrateERC20", async () => {
     await contracts.apeCoin.transfer(contracts.stakeProxy.address, makeBN18(100));
     await expect(
-      contracts.stakeProxy.withdrawERC20Emergency(contracts.apeCoin.address, env.admin.address, makeBN18(100))
+      contracts.stakeProxy.migrateERC20(contracts.apeCoin.address, env.admin.address, makeBN18(100))
     ).to.changeTokenBalances(
       contracts.apeCoin,
       [env.admin.address, contracts.stakeProxy.address],
@@ -190,11 +184,10 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     );
   });
 
-  it("withdrawERC721Emergency", async () => {
+  it("migrateERC721", async () => {
     await contracts.bayc.mint(200);
     await contracts.bayc.transferFrom(env.admin.address, contracts.stakeProxy.address, 200);
-    await expect(contracts.stakeProxy.withdrawERC721Emergency(contracts.bayc.address, env.admin.address, 200)).to.not
-      .reverted;
+    await expect(contracts.stakeProxy.migrateERC721(contracts.bayc.address, env.admin.address, 200)).to.not.reverted;
     expect(await contracts.bayc.ownerOf(200)).to.eq(env.admin.address);
   });
 
@@ -370,17 +363,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
           apeStakedStorage = await contracts.stakeProxy.apeStaked();
           bakcStakedStorage = await contracts.stakeProxy.bakcStaked();
           coinStakedStorage = await contracts.stakeProxy.coinStaked();
-          if (poolId === 1) {
-            expect(await contracts.stakeProxy.poolType()).to.eq(1);
-          } else if (poolId === 2) {
-            expect(await contracts.stakeProxy.poolType()).to.eq(2);
-          } else if (poolId === 3) {
-            if (apeContract.address === contracts.bayc.address) {
-              expect(await contracts.stakeProxy.poolType()).to.eq(3);
-            } else {
-              expect(await contracts.stakeProxy.poolType()).to.eq(4);
-            }
-          }
+
+          expect(await contracts.stakeProxy.poolId()).to.eq(poolId);
           expect(apeStaked.offerHash).to.eq(apeStakedStorage.offerHash);
           expect(apeStaked.staker).to.eq(apeStakedStorage.staker);
           expect(apeStaked.collection).to.eq(apeStakedStorage.collection);

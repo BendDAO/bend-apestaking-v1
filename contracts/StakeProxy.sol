@@ -3,7 +3,7 @@ pragma solidity 0.8.9;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-//fix issue "@openzeppelin/contracts/utils/Address.sol:191: Use of delegatecall is not allowed"
+// fix issue "@openzeppelin/contracts/utils/Address.sol:191: Use of delegatecall is not allowed"
 // refer: https://forum.openzeppelin.com/t/spurious-issue-from-non-upgradeable-initializable-sol/30570/6
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -33,7 +33,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
     DataTypes.CoinStaked private _coinStaked;
 
     bool public override unStaked;
-    PoolType public override poolType;
+    uint256 public override poolId;
 
     IERC721 public override bayc;
     IERC721 public override mayc;
@@ -80,11 +80,6 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
     }
 
     function claimable(address staker, uint256 fee) external view override returns (uint256) {
-        uint256 poolId = _getPoolId();
-        if (poolId == 0) {
-            return 0;
-        }
-
         uint256 tokenId;
         if (poolId == DataTypes.BAKC_POOL_ID) {
             tokenId = _bakcStaked.tokenId;
@@ -94,7 +89,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
         uint256 rewardsToBeClaimed = apeStaking.pendingRewards(poolId, address(this), tokenId);
 
-        (uint256 apeRewards, uint256 bakcRewards, uint256 coinRewards) = _computeRawards(rewardsToBeClaimed);
+        (uint256 apeRewards, uint256 bakcRewards, uint256 coinRewards) = _computeRewards(rewardsToBeClaimed);
 
         uint256 stakerRewards = pendingRewards[staker];
         if (staker == _apeStaked.staker) {
@@ -115,7 +110,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
     }
 
     function unStake() external override onlyOwner nonReentrant {
-        require(poolType != PoolType.UNKNOWN, "StakeProxy: no staking at all");
+        require(poolId != 0, "StakeProxy: no staking at all");
         require(!unStaked, "StakeProxy: already unStaked");
         require(
             IERC721(_apeStaked.collection).ownerOf(_apeStaked.tokenId) == address(this),
@@ -124,17 +119,17 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         uint256 coinAmount = _totalStaked();
         uint256 preBalance = apeCoin.balanceOf(address(this));
 
-        if (poolType == PoolType.SINGLE_BAYC || poolType == PoolType.SINGLE_MAYC) {
+        if (_isSingleBaycPool() || _isSingleMaycPool()) {
             IApeCoinStaking.SingleNft[] memory nfts = new IApeCoinStaking.SingleNft[](1);
             nfts[0] = IApeCoinStaking.SingleNft({tokenId: _apeStaked.tokenId, amount: coinAmount});
-            if (poolType == PoolType.SINGLE_BAYC) {
+            if (_isSingleBaycPool()) {
                 apeStaking.withdrawBAYC(nfts, address(this));
             } else {
                 apeStaking.withdrawMAYC(nfts, address(this));
             }
         }
 
-        if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
+        if (_isPairedBaycPool() || _isPairedMaycPool()) {
             IApeCoinStaking.PairNftWithAmount[] memory nfts = new IApeCoinStaking.PairNftWithAmount[](1);
             nfts[0] = IApeCoinStaking.PairNftWithAmount({
                 mainTokenId: _apeStaked.tokenId,
@@ -142,7 +137,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
                 amount: coinAmount
             });
             IApeCoinStaking.PairNftWithAmount[] memory emptyNfts;
-            if (poolType == PoolType.PAIRED_BAYC) {
+            if (_isPairedBaycPool()) {
                 apeStaking.withdrawBAKC(nfts, emptyNfts);
             } else {
                 apeStaking.withdrawBAKC(emptyNfts, nfts);
@@ -158,7 +153,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         }
         // withdraw from ape staking will receive staked principal and rewards
         uint256 rewardsAmount = apeCoin.balanceOf(address(this)) - preBalance - coinAmount;
-        _allocateRawards(rewardsAmount);
+        _allocateRewards(rewardsAmount);
         unStaked = true;
 
         // transfer nft back to owner
@@ -180,21 +175,14 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         );
         if (bakcStaked_.staker != address(0)) {
             require(bakc.ownerOf(bakcStaked_.tokenId) == address(this), "StakeProxy: not bakc owner");
-
-            if (apeStaked_.collection == address(bayc)) {
-                poolType = PoolType.PAIRED_BAYC;
-            } else {
-                poolType = PoolType.PAIRED_MAYC;
-            }
+            poolId = DataTypes.BAKC_POOL_ID;
         } else {
             if (apeStaked_.collection == address(bayc)) {
-                poolType = PoolType.SINGLE_BAYC;
+                poolId = DataTypes.BAYC_POOL_ID;
             } else {
-                poolType = PoolType.SINGLE_MAYC;
+                poolId = DataTypes.MAYC_POOL_ID;
             }
         }
-
-        uint256 poolId = _getPoolId();
 
         // save storage
         _apeStaked = apeStaked_;
@@ -205,7 +193,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
         // do the ape staking
         apeCoin.safeApprove(address(apeStaking), coinAmount);
-        if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
+        if (_isPairedBaycPool() || _isPairedMaycPool()) {
             // block partially stake from official contract
             require(
                 apeStaking.nftPosition(poolId, bakcStaked_.tokenId).stakedAmount == 0,
@@ -219,7 +207,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
                 amount: coinAmount
             });
             IApeCoinStaking.PairNftWithAmount[] memory emptyNfts;
-            if (poolType == PoolType.PAIRED_BAYC) {
+            if (_isPairedBaycPool()) {
                 apeStaking.depositBAKC(nfts, emptyNfts);
             } else {
                 apeStaking.depositBAKC(emptyNfts, nfts);
@@ -233,7 +221,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
             IApeCoinStaking.SingleNft[] memory nfts = new IApeCoinStaking.SingleNft[](1);
             nfts[0] = IApeCoinStaking.SingleNft({tokenId: apeStaked_.tokenId, amount: coinAmount});
-            if (poolType == PoolType.SINGLE_BAYC) {
+            if (_apeStaked.collection == address(bayc)) {
                 apeStaking.depositBAYC(nfts);
             } else {
                 apeStaking.depositMAYC(nfts);
@@ -252,6 +240,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
     ) external override onlyOwner onlyStaker(staker) nonReentrant returns (uint256 toStaker, uint256 toFee) {
         _claim();
         toStaker = pendingRewards[staker];
+        pendingRewards[staker] = 0;
         toFee = toStaker.percentMul(fee);
         if (toFee > 0 && feeRecipient != address(0)) {
             apeCoin.safeTransfer(feeRecipient, toFee);
@@ -260,7 +249,6 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         if (toStaker > 0) {
             apeCoin.safeTransfer(staker, toStaker);
         }
-        pendingRewards[staker] = 0;
     }
 
     function withdraw(address staker)
@@ -274,11 +262,11 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         require(unStaked, "StakeProxy: can't withdraw");
 
         amount = pendingWithdraw[staker];
-        apeCoin.safeTransfer(staker, amount);
         pendingWithdraw[staker] = 0;
+        apeCoin.safeTransfer(staker, amount);
 
         if (
-            (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) && // must be paired type
+            poolId == DataTypes.BAKC_POOL_ID && // must be bakc pool
             staker == _bakcStaked.staker && // staker must be bakc staker
             bakc.ownerOf(_bakcStaked.tokenId) == address(this) // bakc must not withdrawn
         ) {
@@ -286,7 +274,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         }
     }
 
-    function withdrawERC20Emergency(
+    function migrateERC20(
         address token,
         address to,
         uint256 amount
@@ -294,7 +282,7 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         IERC20(token).safeTransfer(to, amount);
     }
 
-    function withdrawERC721Emergency(
+    function migrateERC721(
         address token,
         address to,
         uint256 tokenId
@@ -302,14 +290,14 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         IERC721(token).safeTransferFrom(address(this), to, tokenId);
     }
 
-    function _allocateRawards(uint256 rewardsAmount) internal {
-        (uint256 apeRewards, uint256 bakcRewards, uint256 coinRewards) = _computeRawards(rewardsAmount);
+    function _allocateRewards(uint256 rewardsAmount) internal {
+        (uint256 apeRewards, uint256 bakcRewards, uint256 coinRewards) = _computeRewards(rewardsAmount);
         pendingRewards[_apeStaked.staker] += apeRewards;
         pendingRewards[_bakcStaked.staker] += bakcRewards;
         pendingRewards[_coinStaked.staker] += coinRewards;
     }
 
-    function _computeRawards(uint256 rewardsAmount)
+    function _computeRewards(uint256 rewardsAmount)
         internal
         view
         returns (
@@ -332,29 +320,29 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
                 "StakeProxy: not ape owner"
             );
             uint256 preBalance = apeCoin.balanceOf(address(this));
-            if (poolType == PoolType.SINGLE_BAYC || poolType == PoolType.SINGLE_MAYC) {
+            if (_isSingleBaycPool() || _isSingleMaycPool()) {
                 uint256[] memory nfts = new uint256[](1);
                 nfts[0] = _apeStaked.tokenId;
-                if (poolType == PoolType.SINGLE_BAYC) {
+                if (_isSingleBaycPool()) {
                     apeStaking.claimBAYC(nfts, address(this));
                 } else {
                     apeStaking.claimMAYC(nfts, address(this));
                 }
             }
 
-            if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
+            if (_isPairedBaycPool() || _isPairedMaycPool()) {
                 require(bakc.ownerOf(_bakcStaked.tokenId) == address(this), "StakeProxy: not bakc owner");
                 IApeCoinStaking.PairNft[] memory nfts = new IApeCoinStaking.PairNft[](1);
                 nfts[0] = IApeCoinStaking.PairNft({mainTokenId: _apeStaked.tokenId, bakcTokenId: _bakcStaked.tokenId});
                 IApeCoinStaking.PairNft[] memory emptyNfts;
-                if (poolType == PoolType.PAIRED_BAYC) {
+                if (_isPairedBaycPool()) {
                     apeStaking.claimBAKC(nfts, emptyNfts, address(this));
                 } else {
                     apeStaking.claimBAKC(emptyNfts, nfts, address(this));
                 }
             }
             uint256 rewardsAmount = apeCoin.balanceOf(address(this)) - preBalance;
-            _allocateRawards(rewardsAmount);
+            _allocateRewards(rewardsAmount);
 
             // transfer nft back to owner
             IERC721(_apeStaked.collection).safeTransferFrom(address(this), owner(), _apeStaked.tokenId);
@@ -365,28 +353,23 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         return _totalStaked();
     }
 
+    function _isSingleBaycPool() internal view returns (bool) {
+        return poolId == 1;
+    }
+
+    function _isSingleMaycPool() internal view returns (bool) {
+        return poolId == 2;
+    }
+
+    function _isPairedBaycPool() internal view returns (bool) {
+        return poolId == 3 && _apeStaked.collection == address(bayc);
+    }
+
+    function _isPairedMaycPool() internal view returns (bool) {
+        return poolId == 3 && _apeStaked.collection == address(mayc);
+    }
+
     function _totalStaked() internal view returns (uint256 coinAmount) {
-        coinAmount = _apeStaked.coinAmount;
-        if (_bakcStaked.coinAmount > 0) {
-            coinAmount += _bakcStaked.coinAmount;
-        }
-        if (_coinStaked.coinAmount > 0) {
-            coinAmount += _coinStaked.coinAmount;
-        }
-    }
-
-    function _getPoolId() internal view returns (uint256) {
-        if (poolType == PoolType.SINGLE_BAYC) {
-            return DataTypes.BAYC_POOL_ID;
-        } else if (poolType == PoolType.SINGLE_MAYC) {
-            return DataTypes.MAYC_POOL_ID;
-        } else if (poolType == PoolType.PAIRED_BAYC || poolType == PoolType.PAIRED_MAYC) {
-            return DataTypes.BAKC_POOL_ID;
-        }
-        return 0;
-    }
-
-    receive() external payable {
-        revert("Receive ETH not allowed");
+        coinAmount = _apeStaked.coinAmount + _bakcStaked.coinAmount + _coinStaked.coinAmount;
     }
 }

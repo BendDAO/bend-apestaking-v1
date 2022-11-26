@@ -9,14 +9,6 @@ import {IApeCoinStaking} from "./IApeCoinStaking.sol";
 import {IBNFT} from "./IBNFT.sol";
 
 interface IStakeProxy {
-    enum PoolType {
-        UNKNOWN,
-        SINGLE_BAYC,
-        SINGLE_MAYC,
-        PAIRED_BAYC,
-        PAIRED_MAYC
-    }
-
     function initialize(
         address owner_,
         address bayc_,
@@ -36,9 +28,9 @@ interface IStakeProxy {
 
     function apeStaking() external view returns (IApeCoinStaking);
 
-    function poolType() external view returns (PoolType);
-
     function version() external view returns (uint256);
+
+    function poolId() external view returns (uint256);
 
     function apeStaked() external view returns (DataTypes.ApeStaked memory);
 
@@ -70,13 +62,13 @@ interface IStakeProxy {
 
     function withdraw(address staker) external returns (uint256);
 
-    function withdrawERC20Emergency(
+    function migrateERC20(
         address token,
         address to,
         uint256 amount
     ) external;
 
-    function withdrawERC721Emergency(
+    function migrateERC721(
         address token,
         address to,
         uint256 tokenId
