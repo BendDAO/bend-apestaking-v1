@@ -11,7 +11,7 @@ import {
   IApeCoinStaking,
   IStakeProxy,
   IStakeManager,
-  IStakeMatcher,
+  IBendApeStaking,
   ILendPool,
   IBNFTRegistry,
   ILendPoolLoan,
@@ -70,7 +70,7 @@ export interface Contracts {
   // bend ape staking
   stakeProxy: IStakeProxy;
   stakeManager: IStakeManager;
-  stakeMatcher: IStakeMatcher;
+  bendApeStaking: IBendApeStaking;
 }
 
 export async function setupEnv(env: Env, contracts: Contracts): Promise<void> {
@@ -160,7 +160,7 @@ export async function setupContracts(): Promise<Contracts> {
     bendAddressesProvider.address,
   ]);
 
-  const stakeMatcher = await deployProxyContract("BendStakeMatcher", [
+  const bendApeStaking = await deployProxyContract("BendApeStaking", [
     bayc.address,
     mayc.address,
     bakc.address,
@@ -190,7 +190,7 @@ export async function setupContracts(): Promise<Contracts> {
     apeStaking,
     stakeProxy,
     stakeManager,
-    stakeMatcher,
+    bendApeStaking,
   } as Contracts;
 }
 

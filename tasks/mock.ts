@@ -3,7 +3,7 @@
 /* eslint-disable node/no-missing-import */
 import { constants } from "ethers";
 import { task } from "hardhat/config";
-import { IStakeMatcher } from "../typechain-types";
+import { IBendApeStaking } from "../typechain-types";
 import { APE_COIN, BAKC, BAYC, getParams } from "./config";
 import { getContractAddressFromDB, getContractFromDB, waitForTx } from "./utils/helpers";
 
@@ -19,14 +19,14 @@ task("mock:matchWithBakcAndCoin", "Mock matchWithBakcAndCoin")
 
     const apeCoin = await ethers.getContractAt("IERC20", getParams(APE_COIN, network.name));
 
-    const matcher = await getContractFromDB<IStakeMatcher>("BendStakeMatcher");
+    const matcher = await getContractFromDB<IBendApeStaking>("BendApeStaking");
 
     const senderSigner = new ethers.Wallet(keys.findPrivateKey(args.sender), ethers.provider);
     const apeSigner = new ethers.Wallet(keys.findPrivateKey(args.apeOffer.staker), ethers.provider);
     const bakcSigner = new ethers.Wallet(keys.findPrivateKey(args.bakcOffer.staker), ethers.provider);
     const coinSigner = new ethers.Wallet(keys.findPrivateKey(args.coinOffer.staker), ethers.provider);
 
-    const matcherContract = await getContractAddressFromDB("BendStakeMatcher");
+    const matcherContract = await getContractAddressFromDB("BendApeStaking");
     const apeContract = await ethers.getContractAt("MintableERC721", getParams(BAYC, network.name));
     const bakcContract = await ethers.getContractAt("MintableERC721", getParams(BAKC, network.name));
     const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -101,13 +101,13 @@ task("mock:matchWithBakc", "Mock matchWithBakc")
 
     const apeCoin = await ethers.getContractAt("IERC20", getParams(APE_COIN, network.name));
 
-    const matcher = await getContractFromDB<IStakeMatcher>("BendStakeMatcher");
+    const matcher = await getContractFromDB<IBendApeStaking>("BendApeStaking");
 
     const senderSigner = new ethers.Wallet(keys.findPrivateKey(args.sender), ethers.provider);
     const apeSigner = new ethers.Wallet(keys.findPrivateKey(args.apeOffer.staker), ethers.provider);
     const bakcSigner = new ethers.Wallet(keys.findPrivateKey(args.bakcOffer.staker), ethers.provider);
 
-    const matcherContract = await getContractAddressFromDB("BendStakeMatcher");
+    const matcherContract = await getContractAddressFromDB("BendApeStaking");
     const apeContract = await ethers.getContractAt("MintableERC721", getParams(BAYC, network.name));
     const bakcContract = await ethers.getContractAt("MintableERC721", getParams(BAKC, network.name));
     const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -165,13 +165,13 @@ task("mock:matchWithCoin", "Mock matchWithCoin")
 
     const apeCoin = await ethers.getContractAt("IERC20", getParams(APE_COIN, network.name));
 
-    const matcher = await getContractFromDB<IStakeMatcher>("BendStakeMatcher");
+    const matcher = await getContractFromDB<IBendApeStaking>("BendApeStaking");
 
     const senderSigner = new ethers.Wallet(keys.findPrivateKey(args.sender), ethers.provider);
     const apeSigner = new ethers.Wallet(keys.findPrivateKey(args.apeOffer.staker), ethers.provider);
     const coinSigner = new ethers.Wallet(keys.findPrivateKey(args.coinOffer.staker), ethers.provider);
 
-    const matcherContract = await getContractAddressFromDB("BendStakeMatcher");
+    const matcherContract = await getContractAddressFromDB("BendApeStaking");
     const apeContract = await ethers.getContractAt("MintableERC721", getParams(BAYC, network.name));
     const chainId = (await ethers.provider.getNetwork()).chainId;
 

@@ -7,7 +7,7 @@
     "address": "0x900B3fc13c42EDd242a6C45A4bfcCc4cd18752Ec",
     "deployer": "0xcbb8a164d498e0c2312F0DDcF0a6Ee2F5bad983A"
   },
-  "BendStakeMatcher": {
+  "BendApeStaking": {
     "address": "0xbcc4bffc6a8b90a12D77245fF72BA11aE0e006f2",
     "deployer": "0xcbb8a164d498e0c2312F0DDcF0a6Ee2F5bad983A"
   }

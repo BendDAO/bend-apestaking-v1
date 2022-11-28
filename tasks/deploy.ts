@@ -31,7 +31,7 @@ task("deploy:full", "Deploy all contracts").setAction(async (_, { run }) => {
 
   // await run("deploy:StakeProxy");
   await run("deploy:StakeManager");
-  await run("deploy:BendStakeMatcher");
+  await run("deploy:BendApeStaking");
   await run("deploy:Config");
 });
 
@@ -63,7 +63,7 @@ task("deploy:StakeManager", "Deploy StakeManager").setAction(async (_, { network
   );
 });
 
-task("deploy:BendStakeMatcher", "Deploy BendStakeMatcher").setAction(async (_, { network, run }) => {
+task("deploy:BendApeStaking", "Deploy BendApeStaking").setAction(async (_, { network, run }) => {
   await run("set-DRE");
   await run("compile");
   // configs
@@ -77,7 +77,7 @@ task("deploy:BendStakeMatcher", "Deploy BendStakeMatcher").setAction(async (_, {
 
   const stakeManager = await getContractAddressFromDB("StakeManager");
   await deployProxyContract(
-    "BendStakeMatcher",
+    "BendApeStaking",
     [bayc, mayc, bakc, bBayc, bMayc, apeCoin, stakeManager, bendAddressesProvider],
     true
   );
@@ -90,7 +90,7 @@ task("deploy:Config", "Config Contracts").setAction(async (_, { network, run }) 
   const deployer = await getDeploySigner();
 
   const stakeManager = await getContractFromDB<IStakeManager>("StakeManager");
-  const bendStakeMatcher = getContractAddressFromDB("BendStakeMatcher");
+  const bendStakeMatcher = getContractAddressFromDB("BendApeStaking");
 
   const fee = getParams(FEE, network.name);
   const feeRecipient = getParams(FEE_RECIPIENT, network.name);

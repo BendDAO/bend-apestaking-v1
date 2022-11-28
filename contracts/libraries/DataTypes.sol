@@ -8,17 +8,17 @@ library DataTypes {
 
     bytes32 internal constant APE_OFFER_HASH =
         keccak256(
-            "ApeOffer(uint8 poolId,address staker,address bakcOfferee,address coinOfferee,address collection,uint256 tokenId,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
+            "ApeOffer(uint8 poolId,address staker,address bakcOfferee,address coinOfferee,address collection,uint256 tokenId,uint256 minCoinCap,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
         );
 
     bytes32 internal constant BAKC_OFFER_HASH =
         keccak256(
-            "BakcOffer(address staker,address apeOfferee,address coinOfferee,uint256 tokenId,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
+            "BakcOffer(address staker,address apeOfferee,address coinOfferee,uint256 tokenId,uint256 minCoinCap,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
         );
 
     bytes32 internal constant COIN_OFFER_HASH =
         keccak256(
-            "CoinOffer(uint8 poolId,address staker,address apeOfferee,address bakcOfferee,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
+            "CoinOffer(uint8 poolId,address staker,address apeOfferee,address bakcOfferee,uint256 minCoinCap,uint256 coinAmount,uint256 share,uint256 startTime,uint256 endTime,uint256 nonce)"
         );
 
     struct ApeOffer {
@@ -28,6 +28,7 @@ library DataTypes {
         address coinOfferee;
         address collection;
         uint256 tokenId;
+        uint256 minCoinCap;
         uint256 coinAmount;
         uint256 share;
         uint256 startTime;
@@ -52,6 +53,7 @@ library DataTypes {
         address apeOfferee;
         address coinOfferee;
         uint256 tokenId;
+        uint256 minCoinCap;
         uint256 coinAmount;
         uint256 share;
         uint256 startTime;
@@ -75,6 +77,7 @@ library DataTypes {
         address staker;
         address apeOfferee;
         address bakcOfferee;
+        uint256 minCoinCap;
         uint256 coinAmount;
         uint256 share;
         uint256 startTime;
@@ -103,6 +106,7 @@ library DataTypes {
                     apeOffer.coinOfferee,
                     apeOffer.collection,
                     apeOffer.tokenId,
+                    apeOffer.minCoinCap,
                     apeOffer.coinAmount,
                     apeOffer.share,
                     apeOffer.startTime,
@@ -121,6 +125,7 @@ library DataTypes {
                     bakcOffer.apeOfferee,
                     bakcOffer.coinOfferee,
                     bakcOffer.tokenId,
+                    bakcOffer.minCoinCap,
                     bakcOffer.coinAmount,
                     bakcOffer.share,
                     bakcOffer.startTime,
@@ -139,6 +144,7 @@ library DataTypes {
                     coinOffer.staker,
                     coinOffer.apeOfferee,
                     coinOffer.bakcOfferee,
+                    coinOffer.minCoinCap,
                     coinOffer.coinAmount,
                     coinOffer.share,
                     coinOffer.startTime,

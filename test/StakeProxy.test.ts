@@ -19,6 +19,12 @@ import {
 } from "./utils";
 
 fc.configureGlobal({
+  numRuns: 10,
+  asyncReporter: async (r) => {
+    if (r.failed) {
+      throw r.errorInstance;
+    }
+  },
   endOnFailure: true,
 });
 

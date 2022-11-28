@@ -9,11 +9,11 @@ import { Contracts, Env } from "./_setup";
 import { BigNumber, constants, Contract } from "ethers";
 import { advanceBlock, latest } from "./helpers/block-traveller";
 import { TypedDataDomain } from "@ethersproject/abstract-signer";
-import { DataTypes } from "../typechain-types/contracts/interfaces/IStakeMatcher";
+import { DataTypes } from "../typechain-types/contracts/interfaces/IBendApeStaking";
 import { signTypedData } from "./helpers/signature-helper";
 import { findPrivateKey } from "./helpers/hardhat-keys";
 
-const NAME = "BendStakeMatcher";
+const NAME = "BendApeStaking";
 const VERSION = "1";
 
 export function makeBN18(num: string | number): BigNumber {
@@ -43,14 +43,21 @@ export const randomApeBakcCoin = (env: Env, contracts: Contracts, maxCap: number
     minLength: 3,
     maxLength: 3,
   });
-  const coins = fc
-    .array(fc.integer({ min: 0, max: maxCap }), { minLength: 3, maxLength: 3 })
-    .filter((t) => t[0] + t[1] + t[2] === maxCap && t[2] > 0);
+
+  const coins = fc.integer({ min: 1, max: maxCap }).chain((minCap) => {
+    return fc.tuple(
+      fc.constant(minCap),
+      fc
+        .array(fc.integer({ min: 0, max: minCap }), { minLength: 3, maxLength: 3 })
+        .filter((t) => t[0] + t[1] + t[2] >= minCap && t[0] + t[1] + t[2] <= maxCap && t[2] > 0)
+    );
+  });
 
   const ape = fc.constantFrom(contracts.bayc.address, contracts.mayc.address);
 
   return fc.tuple(shares, stakers, coins, ape).map((t) => {
-    const [_shares, _stakers, _coins, _ape] = t;
+    const [_shares, _stakers, [_minCoinCap, _coins], _ape] = t;
+
     return {
       apeStaked: {
         offerHash: emptyBytes32,
@@ -74,6 +81,7 @@ export const randomApeBakcCoin = (env: Env, contracts: Contracts, maxCap: number
         share: _shares[2],
       },
       poolId: 3,
+      minCoinCap: makeBN18(_minCoinCap),
       stakers: new Set<string>([
         env.accounts[_stakers[0]].address,
         env.accounts[_stakers[1]].address,
@@ -91,14 +99,20 @@ export const randomApeAndBakc = (env: Env, contracts: Contracts, maxCap: number)
     minLength: 2,
     maxLength: 2,
   });
-  const coins = fc
-    .array(fc.integer({ min: 0, max: maxCap }), { minLength: 2, maxLength: 2 })
-    .filter((t) => t[0] + t[1] === maxCap);
+
+  const coins = fc.integer({ min: 1, max: maxCap }).chain((minCap) => {
+    return fc.tuple(
+      fc.constant(minCap),
+      fc
+        .array(fc.integer({ min: 0, max: minCap }), { minLength: 3, maxLength: 3 })
+        .filter((t) => t[0] + t[1] >= minCap && t[0] + t[1] <= maxCap)
+    );
+  });
 
   const ape = fc.constantFrom(contracts.bayc.address, contracts.mayc.address);
 
   return fc.tuple(shares, stakers, coins, ape).map((t) => {
-    const [_shares, _stakers, _coins, _ape] = t;
+    const [_shares, _stakers, [_minCoinCap, _coins], _ape] = t;
     return {
       apeStaked: {
         offerHash: emptyBytes32,
@@ -122,6 +136,7 @@ export const randomApeAndBakc = (env: Env, contracts: Contracts, maxCap: number)
         share: constants.Zero,
       },
       poolId: 3,
+      minCoinCap: makeBN18(_minCoinCap),
       stakers: new Set<string>([env.accounts[_stakers[0]].address, env.accounts[_stakers[1]].address]),
     };
   });
@@ -137,16 +152,22 @@ export const randomApeAndCoin = (env: Env, contracts: Contracts, maxCap: number,
     maxLength: 2,
   });
 
-  const coins = fc
-    .array(fc.integer({ min: 0, max: maxCap }), { minLength: 2, maxLength: 2 })
-    .filter((t) => t[0] + t[1] === maxCap && t[1] > 0);
+  const coins = fc.integer({ min: 1, max: maxCap }).chain((minCap) => {
+    return fc.tuple(
+      fc.constant(minCap),
+      fc
+        .array(fc.integer({ min: 0, max: minCap }), { minLength: 3, maxLength: 3 })
+        .filter((t) => t[0] + t[1] >= minCap && t[0] + t[1] <= maxCap && t[1] > 0)
+    );
+  });
+
   let poolId = 1;
   if (ape === contracts.mayc.address) {
     poolId = 2;
   }
 
   return fc.tuple(shares, stakers, coins).map((t) => {
-    const [_shares, _stakers, _coins] = t;
+    const [_shares, _stakers, [_minCoinCap, _coins]] = t;
     return {
       apeStaked: {
         offerHash: emptyBytes32,
@@ -170,6 +191,7 @@ export const randomApeAndCoin = (env: Env, contracts: Contracts, maxCap: number,
         share: _shares[1],
       },
       poolId,
+      minCoinCap: makeBN18(_minCoinCap),
       stakers: new Set<string>([env.accounts[_stakers[0]].address, env.accounts[_stakers[1]].address]),
     };
   });
@@ -195,15 +217,57 @@ export const randomSingleStake = (env: Env, contracts: Contracts) => {
   );
 };
 
+export const randomStakeSelfApeBakcCoin = (env: Env, contracts: Contracts, maxCap: number) => {
+  const coinAmount = fc.integer({ min: 1, max: maxCap });
+  return fc.record({
+    staker: fc.constantFrom(...env.accounts.slice(1, 6).map((v) => v.address)),
+    apeCollection: fc.constantFrom(contracts.bayc.address, contracts.mayc.address),
+    apeTokenId: fc.constant(100),
+    bakcTokenId: fc.constant(100),
+    coinAmount: coinAmount.map((v) => makeBN18(v)),
+  });
+};
+
+export const randomStakeSelfApeAndCoin = (env: Env, maxCap: number, ape: string) => {
+  const coinAmount = fc.integer({ min: 1, max: maxCap });
+  return fc.record({
+    staker: fc.constantFrom(...env.accounts.slice(1, 6).map((v) => v.address)),
+    apeCollection: fc.constant(ape),
+    apeTokenId: fc.constant(100),
+    bakcTokenId: fc.constant(0),
+    coinAmount: coinAmount.map((v) => makeBN18(v)),
+  });
+};
+
+export const randomStakeSelfPairedPool = (env: Env, contracts: Contracts) => {
+  return randomStakeSelfApeBakcCoin(env, contracts, 856);
+};
+
+export const randomStakeSelfSinglePool = (env: Env, contracts: Contracts) => {
+  return fc.oneof(
+    randomStakeSelfApeAndCoin(env, 2042, contracts.mayc.address),
+    randomStakeSelfApeAndCoin(env, 10094, contracts.bayc.address)
+  );
+};
+
+export const randomStakeSelf = (env: Env, contracts: Contracts) => {
+  return fc.oneof(
+    randomStakeSelfApeBakcCoin(env, contracts, 856),
+    randomStakeSelfApeAndCoin(env, 2042, contracts.mayc.address),
+    randomStakeSelfApeAndCoin(env, 10094, contracts.bayc.address)
+  );
+};
+
 const mapToOffer = (nowTime: number) => {
   return (t: any) => {
-    const { apeStaked, bakcStaked, coinStaked, poolId, stakers } = t;
+    const { apeStaked, bakcStaked, coinStaked, poolId, minCoinCap, stakers } = t;
     return {
       apeOffer: {
         poolId,
         bakcOfferee: bakcStaked.staker,
         coinOfferee: coinStaked.staker,
         ...apeStaked,
+        minCoinCap,
         startTime: nowTime,
         endTime: nowTime + 3600 * 24,
         nonce: constants.Zero,
@@ -215,6 +279,7 @@ const mapToOffer = (nowTime: number) => {
         apeOfferee: apeStaked.staker,
         coinOfferee: coinStaked.staker,
         ...bakcStaked,
+        minCoinCap,
         startTime: nowTime,
         endTime: nowTime + 3600 * 24,
         nonce: constants.Zero,
@@ -227,6 +292,7 @@ const mapToOffer = (nowTime: number) => {
         apeOfferee: apeStaked.staker,
         bakcOfferee: bakcStaked.staker,
         ...coinStaked,
+        minCoinCap,
         startTime: nowTime,
         endTime: nowTime + 3600 * 24,
         nonce: constants.Zero,
@@ -301,7 +367,7 @@ export const signApeOffer = async (
   privateKey: string,
   apeOffer: DataTypes.ApeOfferStruct
 ) => {
-  const sig = await _signApeOffer(env.chainId, contracts.stakeMatcher.address, privateKey, apeOffer);
+  const sig = await _signApeOffer(env.chainId, contracts.bendApeStaking.address, privateKey, apeOffer);
   return {
     ...apeOffer,
     r: sig.r,
@@ -324,6 +390,7 @@ export const _signApeOffer = async (
     "address", // coinOfferee
     "address", // collection
     "uint256", // tokenId
+    "uint256", // minCoinCap
     "uint256", // coinAmount
     "uint256", // share
     "uint256", // startTime
@@ -332,13 +399,14 @@ export const _signApeOffer = async (
   ];
 
   const values = [
-    "0x0d25ac8a2eb3886bb519915926ca9aad501599e935bca3ba360313f89fd84c1f",
+    "0xc38085c5e613d2865782e3362ed85519b287c59a900b8b9996482b5f15fc297a",
     await apeOffer.poolId,
     await apeOffer.staker,
     await apeOffer.bakcOfferee,
     await apeOffer.coinOfferee,
     await apeOffer.collection,
     await apeOffer.tokenId,
+    await apeOffer.minCoinCap,
     await apeOffer.coinAmount,
     await apeOffer.share,
     await apeOffer.startTime,
@@ -364,6 +432,7 @@ export const hashApeOffer = async (apeOffer: DataTypes.ApeOfferStruct) => {
     "address", // coinOfferee
     "address", // collection
     "uint256", // tokenId
+    "uint256", // minCoinCap
     "uint256", // coinAmount
     "uint256", // share
     "uint256", // startTime
@@ -372,13 +441,14 @@ export const hashApeOffer = async (apeOffer: DataTypes.ApeOfferStruct) => {
   ];
 
   const values = [
-    "0x0d25ac8a2eb3886bb519915926ca9aad501599e935bca3ba360313f89fd84c1f",
+    "0xc38085c5e613d2865782e3362ed85519b287c59a900b8b9996482b5f15fc297a",
     await apeOffer.poolId,
     await apeOffer.staker,
     await apeOffer.bakcOfferee,
     await apeOffer.coinOfferee,
     await apeOffer.collection,
     await apeOffer.tokenId,
+    await apeOffer.minCoinCap,
     await apeOffer.coinAmount,
     await apeOffer.share,
     await apeOffer.startTime,
@@ -395,7 +465,7 @@ export const signBakcOffer = async (
   privateKey: string,
   bakcOffer: DataTypes.BakcOfferStruct
 ) => {
-  const sig = await _signBakcOffer(env.chainId, contracts.stakeMatcher.address, privateKey, bakcOffer);
+  const sig = await _signBakcOffer(env.chainId, contracts.bendApeStaking.address, privateKey, bakcOffer);
   return {
     ...bakcOffer,
     r: sig.r,
@@ -416,6 +486,7 @@ export const _signBakcOffer = async (
     "address", // apeOfferee
     "address", // coinOfferee
     "uint256", // tokenId
+    "uint256", // minCoinCap
     "uint256", // coinAmount
     "uint256", // share
     "uint256", // startTime
@@ -424,11 +495,12 @@ export const _signBakcOffer = async (
   ];
 
   const values = [
-    "0x7663fdea75f14fe999486aacbb9f2cc2a805c44d01ddfd827ac5b1529d848a24",
+    "0x31aa707589f3376f67b74747df0ab3c242e76ef4612bceb0edc253db2f48f280",
     await bakcOffer.staker,
     await bakcOffer.apeOfferee,
     await bakcOffer.coinOfferee,
     await bakcOffer.tokenId,
+    await bakcOffer.minCoinCap,
     await bakcOffer.coinAmount,
     await bakcOffer.share,
     await bakcOffer.startTime,
@@ -452,6 +524,7 @@ export const hashBakcOffer = async (bakcOffer: DataTypes.BakcOfferStruct) => {
     "address", // apeOfferee
     "address", // coinOfferee
     "uint256", // tokenId
+    "uint256", // minCoinCap
     "uint256", // coinAmount
     "uint256", // share
     "uint256", // startTime
@@ -460,11 +533,12 @@ export const hashBakcOffer = async (bakcOffer: DataTypes.BakcOfferStruct) => {
   ];
 
   const values = [
-    "0x7663fdea75f14fe999486aacbb9f2cc2a805c44d01ddfd827ac5b1529d848a24",
+    "0x31aa707589f3376f67b74747df0ab3c242e76ef4612bceb0edc253db2f48f280",
     await bakcOffer.staker,
     await bakcOffer.apeOfferee,
     await bakcOffer.coinOfferee,
     await bakcOffer.tokenId,
+    await bakcOffer.minCoinCap,
     await bakcOffer.coinAmount,
     await bakcOffer.share,
     await bakcOffer.startTime,
@@ -481,7 +555,7 @@ export const signCoinOffer = async (
   privateKey: string,
   coinOffer: DataTypes.CoinOfferStruct
 ) => {
-  const sig = await _signCoinOffer(env.chainId, contracts.stakeMatcher.address, privateKey, coinOffer);
+  const sig = await _signCoinOffer(env.chainId, contracts.bendApeStaking.address, privateKey, coinOffer);
   return {
     ...coinOffer,
     r: sig.r,
@@ -497,6 +571,7 @@ export const hashCoinOffer = async (coinOffer: DataTypes.CoinOfferStruct) => {
     "address", // staker
     "address", // apeOfferee
     "address", // bakcOfferee
+    "uint256", // minCoinCap
     "uint256", // coinAmount
     "uint256", // share
     "uint256", // startTime
@@ -505,11 +580,12 @@ export const hashCoinOffer = async (coinOffer: DataTypes.CoinOfferStruct) => {
   ];
 
   const values = [
-    "0x650f4acd513f723e21669d7b7ffc891283a36a461f7470efec73d6b766c1bf9f",
+    "0xa55f9461c3793469cf78e03c1360fe52ee97f5d3aa1c9effe4a35cec8bac64ee",
     await coinOffer.poolId,
     await coinOffer.staker,
     await coinOffer.apeOfferee,
     await coinOffer.bakcOfferee,
+    await coinOffer.minCoinCap,
     await coinOffer.coinAmount,
     await coinOffer.share,
     await coinOffer.startTime,
@@ -532,6 +608,7 @@ export const _signCoinOffer = async (
     "address", // staker
     "address", // apeOfferee
     "address", // bakcOfferee
+    "uint256", // minCoinCap
     "uint256", // coinAmount
     "uint256", // share
     "uint256", // startTime
@@ -540,11 +617,12 @@ export const _signCoinOffer = async (
   ];
 
   const values = [
-    "0x650f4acd513f723e21669d7b7ffc891283a36a461f7470efec73d6b766c1bf9f",
+    "0xa55f9461c3793469cf78e03c1360fe52ee97f5d3aa1c9effe4a35cec8bac64ee",
     await coinOffer.poolId,
     await coinOffer.staker,
     await coinOffer.apeOfferee,
     await coinOffer.bakcOfferee,
+    await coinOffer.minCoinCap,
     await coinOffer.coinAmount,
     await coinOffer.share,
     await coinOffer.startTime,

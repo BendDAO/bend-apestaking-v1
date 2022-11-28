@@ -7,12 +7,12 @@ import {ECDSAUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/crypto
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import {IBNFT, IERC721Upgradeable} from "./interfaces/IBNFT.sol";
-import {IStakeMatcher, DataTypes} from "./interfaces/IStakeMatcher.sol";
+import {IBendApeStaking, DataTypes} from "./interfaces/IBendApeStaking.sol";
 import {IStakeManager} from "./interfaces/IStakeManager.sol";
 import {ILendPoolAddressesProvider, ILendPool, ILendPoolLoan} from "./interfaces/ILendPoolAddressesProvider.sol";
 import {PercentageMath} from "./libraries/PercentageMath.sol";
 
-contract BendStakeMatcher is IStakeMatcher, ReentrancyGuardUpgradeable {
+contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using DataTypes for DataTypes.ApeOffer;
     using DataTypes for DataTypes.BakcOffer;
@@ -21,7 +21,7 @@ contract BendStakeMatcher is IStakeMatcher, ReentrancyGuardUpgradeable {
     using DataTypes for DataTypes.BakcStaked;
     using DataTypes for DataTypes.CoinStaked;
 
-    string public constant NAME = "BendStakeMatcher";
+    string public constant NAME = "BendApeStaking";
     string public constant VERSION = "1";
 
     uint256 private _CACHED_CHAIN_ID;
@@ -67,12 +67,9 @@ contract BendStakeMatcher is IStakeMatcher, ReentrancyGuardUpgradeable {
         _CACHED_CHAIN_ID = block.chainid;
         _CACHED_THIS = address(this);
 
-        // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
-        _TYPE_HASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
-        // keccak256("BendStakeMatcher")
-        _HASHED_NAME = 0xbcb698091c9b825f82b6d0957999ec0c6842230972755478948ae344e510f89c;
-        // keccak256(bytes("1"))
-        _HASHED_VERSION = 0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6;
+        _TYPE_HASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        _HASHED_NAME = keccak256(bytes(NAME));
+        _HASHED_VERSION = keccak256(bytes(VERSION));
         DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, _HASHED_NAME, _HASHED_VERSION);
     }
 
@@ -134,9 +131,17 @@ contract BendStakeMatcher is IStakeMatcher, ReentrancyGuardUpgradeable {
 
         // check ape coin cap
         require(
-            apeOffer.coinAmount + bakcOffer.coinAmount + coinOffer.coinAmount ==
+            apeOffer.minCoinCap == bakcOffer.minCoinCap && apeOffer.minCoinCap == coinOffer.minCoinCap,
+            "Offer: min coin cap mismatch"
+        );
+        require(
+            apeOffer.coinAmount + bakcOffer.coinAmount + coinOffer.coinAmount >= apeOffer.minCoinCap,
+            "Offer: ape coin cap insufficient"
+        );
+        require(
+            apeOffer.coinAmount + bakcOffer.coinAmount + coinOffer.coinAmount <=
                 stakeManager.getCurrentApeCoinCap(DataTypes.BAKC_POOL_ID),
-            "Offer: ape coin total amount invalid"
+            "Offer: ape coin cap overflow"
         );
 
         _stake(apeOffer.toStaked(), bakcOffer.toStaked(), coinOffer.toStaked());
@@ -168,10 +173,13 @@ contract BendStakeMatcher is IStakeMatcher, ReentrancyGuardUpgradeable {
         );
 
         // check ape coin cap
+        require(apeOffer.minCoinCap == bakcOffer.minCoinCap, "Offer: min coin cap mismatch");
+        require(apeOffer.coinAmount + bakcOffer.coinAmount >= apeOffer.minCoinCap, "Offer: ape coin cap insufficient");
         require(
-            apeOffer.coinAmount + bakcOffer.coinAmount == stakeManager.getCurrentApeCoinCap(DataTypes.BAKC_POOL_ID),
-            "Offer: ape coin total amount invalid"
+            apeOffer.coinAmount + bakcOffer.coinAmount <= stakeManager.getCurrentApeCoinCap(DataTypes.BAKC_POOL_ID),
+            "Offer: ape coin cap overflow"
         );
+
         DataTypes.CoinStaked memory emptyCoinStaked;
         _stake(apeOffer.toStaked(), bakcOffer.toStaked(), emptyCoinStaked);
     }
@@ -214,11 +222,58 @@ contract BendStakeMatcher is IStakeMatcher, ReentrancyGuardUpgradeable {
         if (apeOffer.collection == address(mayc)) {
             maxCap = stakeManager.getCurrentApeCoinCap(DataTypes.MAYC_POOL_ID);
         }
-
-        require(apeOffer.coinAmount + coinOffer.coinAmount == maxCap, "Offer: ape coin total amount invalid");
+        require(apeOffer.minCoinCap == coinOffer.minCoinCap, "Offer: min coin cap mismatch");
+        require(apeOffer.coinAmount + coinOffer.coinAmount >= apeOffer.minCoinCap, "Offer: ape coin cap insufficient");
+        require(apeOffer.coinAmount + coinOffer.coinAmount <= maxCap, "Offer: ape coin cap overflow");
 
         DataTypes.BakcStaked memory emptyBakcStaked;
         _stake(apeOffer.toStaked(), emptyBakcStaked, coinOffer.toStaked());
+    }
+
+    function stakeSelf(
+        address apeCollection,
+        uint256 apeTokenId,
+        uint256 bakcTokenId,
+        uint256 apeCoinAmount
+    ) external {
+        require(apeCollection == address(bayc) || apeCollection == address(mayc), "selfStake: not ape collection");
+
+        IBNFT boundApe = IBNFT(boundBayc);
+        if (apeCollection == address(mayc)) {
+            boundApe = IBNFT(boundMayc);
+        }
+
+        require(
+            IERC721Upgradeable(apeCollection).ownerOf(apeTokenId) == msg.sender ||
+                boundApe.ownerOf(apeTokenId) == msg.sender,
+            "selfStake: not ape owner"
+        );
+
+        uint256 poolId;
+        if (bakcTokenId > 0) {
+            poolId = DataTypes.BAKC_POOL_ID;
+        } else {
+            poolId = DataTypes.BAYC_POOL_ID;
+            if (apeCollection == address(mayc)) {
+                poolId = DataTypes.MAYC_POOL_ID;
+            }
+        }
+        require(apeCoinAmount <= stakeManager.getCurrentApeCoinCap(poolId), "selfStake: ape coin cap overflow");
+        DataTypes.ApeStaked memory apeStaked;
+        {
+            apeStaked.staker = msg.sender;
+            apeStaked.collection = apeCollection;
+            apeStaked.tokenId = apeTokenId;
+            apeStaked.share = PercentageMath.PERCENTAGE_FACTOR;
+            apeStaked.coinAmount = apeCoinAmount;
+        }
+        DataTypes.BakcStaked memory bakcStaked;
+        if (bakcTokenId > 0) {
+            bakcStaked.staker = msg.sender;
+            bakcStaked.tokenId = bakcTokenId;
+        }
+        DataTypes.CoinStaked memory coinStaked;
+        _stake(apeStaked, bakcStaked, coinStaked);
     }
 
     function _stake(

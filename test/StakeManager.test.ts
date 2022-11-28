@@ -12,8 +12,12 @@ import { parseEvents } from "./helpers/transaction-helper";
 
 fc.configureGlobal({
   numRuns: 10,
+  asyncReporter: async (r) => {
+    if (r.failed) {
+      throw r.errorInstance;
+    }
+  },
   endOnFailure: true,
-  markInterruptAsFailure: true,
 });
 
 /* eslint-disable no-unused-expressions */
@@ -499,12 +503,8 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
         return fc.tuple(
           fc.constant(v),
           randomWithLoan,
-          fc.constantFrom(...env.accounts).filter((account) => {
-            return (
-              account.address !== v.apeStaked.staker &&
-              account.address !== v.bakcStaked.staker &&
-              account.address !== v.coinStaked.staker
-            );
+          fc.constantFrom(...env.accounts.map((i) => i.address)).filter((account) => {
+            return account !== v.apeStaked.staker && account !== v.bakcStaked.staker && account !== v.coinStaked.staker;
           })
         );
       });
@@ -514,9 +514,9 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       await prepareStake(param, withLoan);
       await doStake(param);
       const proxy = (param as any).proxy;
-      await expect(contracts.stakeManager.connect(unStaker).unStake(proxy.address)).to.be.revertedWith(
-        "StakeManager: invalid caller"
-      );
+      await expect(
+        contracts.stakeManager.connect(await ethers.getSigner(unStaker)).unStake(proxy.address)
+      ).to.be.revertedWith("StakeManager: invalid caller");
     }
   });
 
@@ -529,12 +529,8 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
         return fc.tuple(
           fc.constant(v),
           randomWithLoan,
-          fc.constantFrom(...env.accounts).filter((account) => {
-            return (
-              account.address !== v.apeStaked.staker &&
-              account.address !== v.bakcStaked.staker &&
-              account.address !== v.coinStaked.staker
-            );
+          fc.constantFrom(...env.accounts.map((i) => i.address)).filter((account) => {
+            return account !== v.apeStaked.staker && account !== v.bakcStaked.staker && account !== v.coinStaked.staker;
           })
         );
       });
@@ -545,7 +541,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       await prepareStake(param, withLoan);
       await doStake(param);
       const proxy = (param as any).proxy;
-      await expect(contracts.stakeManager.claimFor(proxy.address, claimFor.address)).to.be.revertedWith(
+      await expect(contracts.stakeManager.claimFor(proxy.address, claimFor)).to.be.revertedWith(
         "StakeManager: invalid caller"
       );
     }
@@ -885,12 +881,8 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
           fc.constant(v),
           randomWithLoan,
           fc.constantFrom(...v.stakers),
-          fc.constantFrom(...env.accounts).filter((account) => {
-            return (
-              account.address !== v.apeStaked.staker &&
-              account.address !== v.bakcStaked.staker &&
-              account.address !== v.coinStaked.staker
-            );
+          fc.constantFrom(...env.accounts.map((i) => i.address)).filter((account) => {
+            return account !== v.apeStaked.staker && account !== v.bakcStaked.staker && account !== v.coinStaked.staker;
           })
         );
       });
@@ -900,14 +892,15 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       await prepareStake(param, withLoan);
       await doStake(param);
       const proxy = (param as any).proxy;
-      await expect(contracts.stakeManager.connect(operator).unStake(proxy.address)).to.be.revertedWith(
+      const operatorSigner = await ethers.getSigner(operator);
+      await expect(contracts.stakeManager.connect(operatorSigner).unStake(proxy.address)).to.be.revertedWith(
         "StakeManager: invalid caller"
       );
-      await contracts.stakeManager.connect(await ethers.getSigner(staker)).approveOperator(operator.address);
-      expect(await contracts.stakeManager.isApproved(staker, operator.address)).be.true;
-      await expect(contracts.stakeManager.connect(operator).unStake(proxy.address)).not.reverted;
+      await contracts.stakeManager.connect(await ethers.getSigner(staker)).approveOperator(operator);
+      expect(await contracts.stakeManager.isApproved(staker, operator)).be.true;
+      await expect(contracts.stakeManager.connect(operatorSigner).unStake(proxy.address)).not.reverted;
       await contracts.stakeManager.connect(await ethers.getSigner(staker)).revokeOperator();
-      expect(await contracts.stakeManager.isApproved(staker, operator.address)).be.false;
+      expect(await contracts.stakeManager.isApproved(staker, operator)).be.false;
     }
   });
 
@@ -1036,8 +1029,8 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       return randomStake(env, contracts).chain((v) => {
         return fc.tuple(
           fc.constant(v),
-          fc.constantFrom(...env.accounts).filter((s) => {
-            return s.address !== v.apeStaked.staker;
+          fc.constantFrom(...env.accounts.map((i) => i.address)).filter((s) => {
+            return s !== v.apeStaked.staker;
           })
         );
       });
@@ -1053,9 +1046,10 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
           const boundApeContract = (param as any).boundApeContract;
 
           const tokenId = BigNumber.from(apeStaked.tokenId).add(1);
-          await apeContract.connect(staker).mint(tokenId);
-          await apeContract.connect(staker).approve(boundApeContract.address, tokenId);
-          await boundApeContract.connect(staker).mint(staker.address, tokenId);
+          const stakerSigner = await ethers.getSigner(staker);
+          await apeContract.connect(stakerSigner).mint(tokenId);
+          await apeContract.connect(stakerSigner).approve(boundApeContract.address, tokenId);
+          await boundApeContract.connect(stakerSigner).mint(staker, tokenId);
 
           const siger = await ethers.getSigner(apeStaked.staker);
           const amount = makeBN18("0.001");
