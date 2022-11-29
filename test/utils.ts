@@ -234,7 +234,7 @@ export const randomStakeSelfApeAndCoin = (env: Env, maxCap: number, ape: string)
     staker: fc.constantFrom(...env.accounts.slice(1, 6).map((v) => v.address)),
     apeCollection: fc.constant(ape),
     apeTokenId: fc.constant(100),
-    bakcTokenId: fc.constant(0),
+    bakcTokenId: fc.constant(constants.MaxUint256),
     coinAmount: coinAmount.map((v) => makeBN18(v)),
   });
 };

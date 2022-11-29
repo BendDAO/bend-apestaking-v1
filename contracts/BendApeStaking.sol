@@ -247,7 +247,7 @@ contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
         );
 
         uint256 poolId;
-        if (bakcTokenId > 0) {
+        if (bakcTokenId != type(uint256).max) {
             poolId = DataTypes.BAKC_POOL_ID;
         } else {
             poolId = DataTypes.BAYC_POOL_ID;
@@ -265,7 +265,7 @@ contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
             apeStaked.coinAmount = apeCoinAmount;
         }
         DataTypes.BakcStaked memory bakcStaked;
-        if (bakcTokenId > 0) {
+        if (bakcTokenId != type(uint256).max) {
             bakcStaked.staker = msg.sender;
             bakcStaked.tokenId = bakcTokenId;
         }

@@ -208,7 +208,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
       }
     }
 
-    if (param.bakcTokenId > 0) {
+    if (param.bakcTokenId !== constants.MaxUint256) {
       try {
         await contracts.bakc.connect(stakerSigner).mint(param.bakcTokenId);
         await contracts.bakc.connect(stakerSigner).approve(contracts.bendApeStaking.address, param.bakcTokenId);
@@ -229,7 +229,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
     expect(10000).to.eq(apeStakedStorage.share);
     expect(param.coinAmount).to.eq(apeStakedStorage.coinAmount);
 
-    if (param.bakcTokenId > 0) {
+    if (param.bakcTokenId !== constants.MaxUint256) {
       expect(emptyBytes32).to.eq(bakcStakedStorage.offerHash);
       expect(param.staker).to.eq(bakcStakedStorage.staker);
       expect(param.bakcTokenId).to.eq(bakcStakedStorage.tokenId);
@@ -244,7 +244,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
     expect(await contracts.stakeManager.getStakedProxies(param.apeCollection, param.apeTokenId)).contains(
       param.proxy.address
     );
-    if (param.bakcTokenId > 0) {
+    if (param.bakcTokenId !== constants.MaxUint256) {
       expect(await contracts.stakeManager.getStakedProxies(contracts.bakc.address, param.bakcTokenId)).contains(
         param.proxy.address
       );

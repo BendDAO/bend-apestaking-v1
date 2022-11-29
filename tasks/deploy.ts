@@ -121,3 +121,15 @@ task("upgrade", "upgrade contract")
     console.log("New implmentation at: ", implAddress);
     await verifyEtherscanContract(implAddress, []);
   });
+
+task("forceImport", "force import implmentation to proxy")
+  .addParam("proxy", "The proxy address")
+  .addParam("implid", "The new impl contract id")
+  .setAction(async ({ proxy, implid }, { ethers, upgrades, run }) => {
+    await run("set-DRE");
+    await run("compile");
+    const upgradeable = await ethers.getContractFactory(implid);
+    console.log(`Import proxy: ${proxy} with ${implid}`);
+    // @ts-ignore
+    await upgrades.forceImport(proxy, upgradeable);
+  });
