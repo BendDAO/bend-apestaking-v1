@@ -18,9 +18,6 @@ contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
     using DataTypes for DataTypes.BakcOffer;
     using DataTypes for DataTypes.CoinOffer;
 
-    using DataTypes for DataTypes.BakcStaked;
-    using DataTypes for DataTypes.CoinStaked;
-
     string public constant NAME = "BendApeStaking";
     string public constant VERSION = "1";
 

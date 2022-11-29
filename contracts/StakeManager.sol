@@ -577,17 +577,9 @@ contract StakeManager is
             }
         }
         // paired bakc pool
-        if (poolId == DataTypes.BAKC_POOL_ID) {
-            if (coinStaker == address(0)) {
-                // same ape & bakc staker, no coin staker
-                if (apeStaker == bakcStaker) {
-                    return 0;
-                }
-            } else {
-                // same ape & bakc & coin staker
-                if (apeStaker == bakcStaker && apeStaker == coinStaker) {
-                    return 0;
-                }
+        if (poolId == DataTypes.BAKC_POOL_ID && apeStaker == bakcStaker) {
+            if (coinStaker == address(0) || apeStaker == coinStaker) {
+                return 0;
             }
         }
         // any other case

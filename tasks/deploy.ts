@@ -29,7 +29,7 @@ task("deploy:full", "Deploy all contracts").setAction(async (_, { run }) => {
   await run("set-DRE");
   await run("compile");
 
-  // await run("deploy:StakeProxy");
+  await run("deploy:StakeProxy");
   await run("deploy:StakeManager");
   await run("deploy:BendApeStaking");
   await run("deploy:Config");
@@ -90,13 +90,13 @@ task("deploy:Config", "Config Contracts").setAction(async (_, { network, run }) 
   const deployer = await getDeploySigner();
 
   const stakeManager = await getContractFromDB<IStakeManager>("StakeManager");
-  const bendStakeMatcher = getContractAddressFromDB("BendApeStaking");
+  const bendApeStaking = getContractAddressFromDB("BendApeStaking");
 
   const fee = getParams(FEE, network.name);
   const feeRecipient = getParams(FEE_RECIPIENT, network.name);
 
   // config contracts
-  await waitForTx(await stakeManager.connect(deployer).setMatcher(bendStakeMatcher));
+  await waitForTx(await stakeManager.connect(deployer).setMatcher(bendApeStaking));
   await waitForTx(await stakeManager.connect(deployer).updateFee(fee));
   await waitForTx(await stakeManager.connect(deployer).updateFeeRecipient(feeRecipient));
 });

@@ -997,7 +997,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
         const times = getPoolTime(v.poolId);
-        const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
+        const randomTime = fc.integer({ min: Math.max(now + 200, times[0]), max: times[1] });
         return fc.tuple(
           fc.constant(v),
           randomWithLoan,
