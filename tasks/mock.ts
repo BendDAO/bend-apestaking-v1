@@ -70,18 +70,34 @@ task("mock:matchWithBakcAndCoin", "Mock matchWithBakcAndCoin")
       args.coinOffer.v = sig.v;
     }
 
-    console.log("approve ape coin for ape staker");
-    await waitForTx(await apeCoin.connect(apeSigner).approve(matcherContract, constants.MaxUint256));
-    console.log("approve ape coin for bakc staker");
-    await waitForTx(await apeCoin.connect(bakcSigner).approve(matcherContract, constants.MaxUint256));
-    console.log("approve ape coin for coin staker");
-    await waitForTx(await apeCoin.connect(coinSigner).approve(matcherContract, constants.MaxUint256));
+    const apeSignerAllow = await apeCoin.allowance(apeSigner.address, matcherContract);
+    if (apeSignerAllow.eq(0)) {
+      console.log("approve ape coin for ape staker");
+      await waitForTx(await apeCoin.connect(apeSigner).approve(matcherContract, constants.MaxUint256));
+    }
 
-    console.log("approve ape nft");
-    await waitForTx(await apeContract.connect(apeSigner).approve(matcherContract, args.apeOffer.tokenId));
+    const bakcSignerAllow = await apeCoin.allowance(bakcSigner.address, matcherContract);
+    if (bakcSignerAllow.eq(0)) {
+      console.log("approve ape coin for bakc staker");
+      await waitForTx(await apeCoin.connect(bakcSigner).approve(matcherContract, constants.MaxUint256));
+    }
 
-    console.log("approve bakc nft");
-    await waitForTx(await bakcContract.connect(bakcSigner).approve(matcherContract, args.bakcOffer.tokenId));
+    const coinSignerAllow = await apeCoin.allowance(coinSigner.address, matcherContract);
+    if (coinSignerAllow.eq(0)) {
+      console.log("approve ape coin for coin staker");
+      await waitForTx(await apeCoin.connect(coinSigner).approve(matcherContract, constants.MaxUint256));
+    }
+
+    const apeTokenOwner = await apeContract.ownerOf(args.apeOffer.tokenId);
+    if (apeTokenOwner === apeSigner.address) {
+      console.log("approve ape nft");
+      await waitForTx(await apeContract.connect(apeSigner).approve(matcherContract, args.apeOffer.tokenId));
+    }
+
+    if (args.bakcOffer) {
+      console.log("approve bakc nft");
+      await waitForTx(await bakcContract.connect(bakcSigner).approve(matcherContract, args.bakcOffer.tokenId));
+    }
 
     console.log("match offers");
     await waitForTx(
@@ -138,16 +154,28 @@ task("mock:matchWithBakc", "Mock matchWithBakc")
       args.bakcOffer.v = sig.v;
     }
 
-    console.log("approve ape coin for ape staker");
-    await waitForTx(await apeCoin.connect(apeSigner).approve(matcherContract, constants.MaxUint256));
-    console.log("approve ape coin for bakc staker");
-    await waitForTx(await apeCoin.connect(bakcSigner).approve(matcherContract, constants.MaxUint256));
+    const apeSignerAllow = await apeCoin.allowance(apeSigner.address, matcherContract);
+    if (apeSignerAllow.eq(0)) {
+      console.log("approve ape coin for ape staker");
+      await waitForTx(await apeCoin.connect(apeSigner).approve(matcherContract, constants.MaxUint256));
+    }
 
-    console.log("approve ape nft");
-    await waitForTx(await apeContract.connect(apeSigner).approve(matcherContract, args.apeOffer.tokenId));
+    const bakcSignerAllow = await apeCoin.allowance(bakcSigner.address, matcherContract);
+    if (bakcSignerAllow.eq(0)) {
+      console.log("approve ape coin for bakc staker");
+      await waitForTx(await apeCoin.connect(bakcSigner).approve(matcherContract, constants.MaxUint256));
+    }
 
-    console.log("approve bakc nft");
-    await waitForTx(await bakcContract.connect(bakcSigner).approve(matcherContract, args.bakcOffer.tokenId));
+    const apeTokenOwner = await apeContract.ownerOf(args.apeOffer.tokenId);
+    if (apeTokenOwner === apeSigner.address) {
+      console.log("approve ape nft");
+      await waitForTx(await apeContract.connect(apeSigner).approve(matcherContract, args.apeOffer.tokenId));
+    }
+
+    if (args.bakcOffer) {
+      console.log("approve bakc nft");
+      await waitForTx(await bakcContract.connect(bakcSigner).approve(matcherContract, args.bakcOffer.tokenId));
+    }
 
     console.log("match offers");
     await waitForTx(await matcher.connect(senderSigner).matchWithBakc(args.apeOffer, args.bakcOffer));
@@ -190,7 +218,7 @@ task("mock:matchWithCoin", "Mock matchWithCoin")
 
     if (args.sender !== args.coinOffer.staker) {
       console.log("sign coin offer");
-      const sig = await utils._signBakcOffer(
+      const sig = await utils._signCoinOffer(
         chainId,
         matcherContract,
         keys.findPrivateKey(args.coinOffer.staker),
@@ -201,13 +229,17 @@ task("mock:matchWithCoin", "Mock matchWithCoin")
       args.coinOffer.v = sig.v;
     }
 
-    console.log("approve ape coin for ape staker");
-    await waitForTx(await apeCoin.connect(apeSigner).approve(matcherContract, constants.MaxUint256));
-    console.log("approve ape coin for coin staker");
-    await waitForTx(await apeCoin.connect(coinSigner).approve(matcherContract, constants.MaxUint256));
+    const coinSignerAllow = await apeCoin.allowance(coinSigner.address, matcherContract);
+    if (coinSignerAllow.eq(0)) {
+      console.log("approve ape coin for coin staker");
+      await waitForTx(await apeCoin.connect(coinSigner).approve(matcherContract, constants.MaxUint256));
+    }
 
-    console.log("approve ape nft");
-    await waitForTx(await apeContract.connect(apeSigner).approve(matcherContract, args.apeOffer.tokenId));
+    const apeTokenOwner = await apeContract.ownerOf(args.apeOffer.tokenId);
+    if (apeTokenOwner === apeSigner.address) {
+      console.log("approve ape nft");
+      await waitForTx(await apeContract.connect(apeSigner).approve(matcherContract, args.apeOffer.tokenId));
+    }
 
     console.log("match offers");
     await waitForTx(await matcher.connect(senderSigner).matchWithCoin(args.apeOffer, args.coinOffer));
