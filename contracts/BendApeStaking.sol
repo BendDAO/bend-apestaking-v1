@@ -131,6 +131,7 @@ contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
             apeOffer.minCoinCap == bakcOffer.minCoinCap && apeOffer.minCoinCap == coinOffer.minCoinCap,
             "Offer: min coin cap mismatch"
         );
+        require(apeOffer.minCoinCap >= 1e18, "Offer: min coin cap can't less the 1e18");
         require(
             apeOffer.coinAmount + bakcOffer.coinAmount + coinOffer.coinAmount >= apeOffer.minCoinCap,
             "Offer: ape coin cap insufficient"
@@ -171,6 +172,7 @@ contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
 
         // check ape coin cap
         require(apeOffer.minCoinCap == bakcOffer.minCoinCap, "Offer: min coin cap mismatch");
+        require(apeOffer.minCoinCap >= 1e18, "Offer: min coin cap can't less the 1e18");
         require(apeOffer.coinAmount + bakcOffer.coinAmount >= apeOffer.minCoinCap, "Offer: ape coin cap insufficient");
         require(
             apeOffer.coinAmount + bakcOffer.coinAmount <= stakeManager.getCurrentApeCoinCap(DataTypes.BAKC_POOL_ID),
@@ -220,6 +222,8 @@ contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
             maxCap = stakeManager.getCurrentApeCoinCap(DataTypes.MAYC_POOL_ID);
         }
         require(apeOffer.minCoinCap == coinOffer.minCoinCap, "Offer: min coin cap mismatch");
+        require(apeOffer.minCoinCap >= 1e18, "Offer: min coin cap can't less the 1e18");
+
         require(apeOffer.coinAmount + coinOffer.coinAmount >= apeOffer.minCoinCap, "Offer: ape coin cap insufficient");
         require(apeOffer.coinAmount + coinOffer.coinAmount <= maxCap, "Offer: ape coin cap overflow");
 
@@ -232,8 +236,9 @@ contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
         uint256 apeTokenId,
         uint256 bakcTokenId,
         uint256 apeCoinAmount
-    ) external {
+    ) external nonReentrant {
         require(apeCollection == address(bayc) || apeCollection == address(mayc), "selfStake: not ape collection");
+        require(apeCoinAmount >= 1e18, "selfStake: can't stake less than 1 $APE");
 
         IBNFT boundApe = IBNFT(boundBayc);
         if (apeCollection == address(mayc)) {

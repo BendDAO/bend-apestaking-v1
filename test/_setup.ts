@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { ethers, network, upgrades } from "hardhat";
+import { ethers, network } from "hardhat";
 import { parseEther } from "ethers/lib/utils";
 import {
   IWETH,
@@ -147,7 +147,8 @@ export async function setupContracts(): Promise<Contracts> {
 
   const stakeProxy = await deployContract<IStakeProxy>("StakeProxy", []);
 
-  const stakeManager = await deployProxyContract("StakeManager", [
+  const stakeManager = await deployContract("StakeManager", []);
+  await stakeManager.initialize(
     bayc.address,
     mayc.address,
     bakc.address,
@@ -157,10 +158,11 @@ export async function setupContracts(): Promise<Contracts> {
     weth.address,
     apeStaking.address,
     stakeProxy.address,
-    bendAddressesProvider.address,
-  ]);
+    bendAddressesProvider.address
+  );
 
-  const bendApeStaking = await deployProxyContract("BendApeStaking", [
+  const bendApeStaking = await deployContract("BendApeStaking", []);
+  await bendApeStaking.initialize(
     bayc.address,
     mayc.address,
     bakc.address,
@@ -168,8 +170,8 @@ export async function setupContracts(): Promise<Contracts> {
     bMayc.address,
     apeCoin.address,
     stakeManager.address,
-    bendAddressesProvider.address,
-  ]);
+    bendAddressesProvider.address
+  );
 
   /** Return contracts
    */
@@ -197,17 +199,6 @@ export async function setupContracts(): Promise<Contracts> {
 async function deployContract<ContractType extends Contract>(contractName: string, args: any[]): Promise<ContractType> {
   const instance = await (await ethers.getContractFactory(contractName)).deploy(...args);
 
-  return instance as ContractType;
-}
-
-async function deployProxyContract<ContractType extends Contract>(
-  contractName: string,
-  args: any[]
-): Promise<ContractType> {
-  const factory = await ethers.getContractFactory(contractName);
-  const instance = await upgrades.deployProxy(factory, args, {
-    timeout: 0,
-  });
   return instance as ContractType;
 }
 
