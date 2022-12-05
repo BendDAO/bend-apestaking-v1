@@ -16,6 +16,9 @@ import { findPrivateKey } from "./helpers/hardhat-keys";
 const NAME = "BendApeStaking";
 const VERSION = "1";
 
+const APE_TOKEN_ID = 101;
+const BAKC_TOKEN_ID = 102;
+
 export function makeBN18(num: string | number): BigNumber {
   return ethers.utils.parseUnits(num.toString(), 18);
 }
@@ -63,14 +66,14 @@ export const randomApeBakcCoin = (env: Env, contracts: Contracts, maxCap: number
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[0]].address,
         collection: _ape,
-        tokenId: 100,
+        tokenId: APE_TOKEN_ID,
         coinAmount: makeBN18(_coins[0]),
         share: _shares[0],
       },
       bakcStaked: {
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[1]].address,
-        tokenId: 100,
+        tokenId: BAKC_TOKEN_ID,
         coinAmount: makeBN18(_coins[1]),
         share: _shares[1],
       },
@@ -118,14 +121,14 @@ export const randomApeAndBakc = (env: Env, contracts: Contracts, maxCap: number)
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[0]].address,
         collection: _ape,
-        tokenId: 100,
+        tokenId: APE_TOKEN_ID,
         coinAmount: makeBN18(_coins[0]),
         share: _shares[0],
       },
       bakcStaked: {
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[1]].address,
-        tokenId: 100,
+        tokenId: BAKC_TOKEN_ID,
         coinAmount: makeBN18(_coins[1]),
         share: _shares[1],
       },
@@ -173,7 +176,7 @@ export const randomApeAndCoin = (env: Env, contracts: Contracts, maxCap: number,
         offerHash: emptyBytes32,
         staker: env.accounts[_stakers[0]].address,
         collection: ape,
-        tokenId: 100,
+        tokenId: APE_TOKEN_ID,
         coinAmount: makeBN18(_coins[0]),
         share: _shares[0],
       },
@@ -222,8 +225,8 @@ export const randomStakeSelfApeBakcCoin = (env: Env, contracts: Contracts, maxCa
   return fc.record({
     staker: fc.constantFrom(...env.accounts.slice(1, 6).map((v) => v.address)),
     apeCollection: fc.constantFrom(contracts.bayc.address, contracts.mayc.address),
-    apeTokenId: fc.constant(100),
-    bakcTokenId: fc.constant(100),
+    apeTokenId: fc.constant(APE_TOKEN_ID),
+    bakcTokenId: fc.constant(BAKC_TOKEN_ID),
     coinAmount: coinAmount.map((v) => makeBN18(v)),
   });
 };
@@ -233,7 +236,7 @@ export const randomStakeSelfApeAndCoin = (env: Env, maxCap: number, ape: string)
   return fc.record({
     staker: fc.constantFrom(...env.accounts.slice(1, 6).map((v) => v.address)),
     apeCollection: fc.constant(ape),
-    apeTokenId: fc.constant(100),
+    apeTokenId: fc.constant(APE_TOKEN_ID),
     bakcTokenId: fc.constant(constants.MaxUint256),
     coinAmount: coinAmount.map((v) => makeBN18(v)),
   });

@@ -27,8 +27,8 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   let pools: any;
 
   const getPoolTime = (poolId_: number): number[] => {
-    const startTimestamp = pools[poolId_].currentTimeRange.startTimestampHour.toNumber();
-    const endTimestamp = pools[poolId_].currentTimeRange.endTimestampHour.toNumber();
+    const startTimestamp = pools[poolId_].currentTimeRange.startTimestampHour;
+    const endTimestamp = pools[poolId_].currentTimeRange.endTimestampHour;
     return [startTimestamp, endTimestamp];
   };
 

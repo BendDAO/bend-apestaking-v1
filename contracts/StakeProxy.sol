@@ -121,7 +121,10 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
 
         if (_isSingleBaycPool() || _isSingleMaycPool()) {
             IApeCoinStaking.SingleNft[] memory nfts = new IApeCoinStaking.SingleNft[](1);
-            nfts[0] = IApeCoinStaking.SingleNft({tokenId: _apeStaked.tokenId, amount: coinAmount});
+            nfts[0] = IApeCoinStaking.SingleNft({
+                tokenId: _apeStaked.tokenId.toUint32(),
+                amount: coinAmount.toUint224()
+            });
             if (_isSingleBaycPool()) {
                 apeStaking.withdrawBAYC(nfts, address(this));
             } else {
@@ -130,13 +133,16 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
         }
 
         if (_isPairedBaycPool() || _isPairedMaycPool()) {
-            IApeCoinStaking.PairNftWithAmount[] memory nfts = new IApeCoinStaking.PairNftWithAmount[](1);
-            nfts[0] = IApeCoinStaking.PairNftWithAmount({
-                mainTokenId: _apeStaked.tokenId,
-                bakcTokenId: _bakcStaked.tokenId,
-                amount: coinAmount
+            IApeCoinStaking.PairNftWithdrawWithAmount[] memory nfts = new IApeCoinStaking.PairNftWithdrawWithAmount[](
+                1
+            );
+            nfts[0] = IApeCoinStaking.PairNftWithdrawWithAmount({
+                mainTokenId: _apeStaked.tokenId.toUint32(),
+                bakcTokenId: _bakcStaked.tokenId.toUint32(),
+                amount: coinAmount.toUint184(),
+                isUncommit: true
             });
-            IApeCoinStaking.PairNftWithAmount[] memory emptyNfts;
+            IApeCoinStaking.PairNftWithdrawWithAmount[] memory emptyNfts;
             if (_isPairedBaycPool()) {
                 apeStaking.withdrawBAKC(nfts, emptyNfts);
             } else {
@@ -200,13 +206,13 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
                 "StakeProxy: bakc already staked"
             );
 
-            IApeCoinStaking.PairNftWithAmount[] memory nfts = new IApeCoinStaking.PairNftWithAmount[](1);
-            nfts[0] = IApeCoinStaking.PairNftWithAmount({
-                mainTokenId: apeStaked_.tokenId,
-                bakcTokenId: bakcStaked_.tokenId,
-                amount: coinAmount
+            IApeCoinStaking.PairNftDepositWithAmount[] memory nfts = new IApeCoinStaking.PairNftDepositWithAmount[](1);
+            nfts[0] = IApeCoinStaking.PairNftDepositWithAmount({
+                mainTokenId: apeStaked_.tokenId.toUint32(),
+                bakcTokenId: bakcStaked_.tokenId.toUint32(),
+                amount: coinAmount.toUint184()
             });
-            IApeCoinStaking.PairNftWithAmount[] memory emptyNfts;
+            IApeCoinStaking.PairNftDepositWithAmount[] memory emptyNfts;
             if (_isPairedBaycPool()) {
                 apeStaking.depositBAKC(nfts, emptyNfts);
             } else {
@@ -220,7 +226,10 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
             );
 
             IApeCoinStaking.SingleNft[] memory nfts = new IApeCoinStaking.SingleNft[](1);
-            nfts[0] = IApeCoinStaking.SingleNft({tokenId: apeStaked_.tokenId, amount: coinAmount});
+            nfts[0] = IApeCoinStaking.SingleNft({
+                tokenId: apeStaked_.tokenId.toUint32(),
+                amount: coinAmount.toUint224()
+            });
             if (_apeStaked.collection == address(bayc)) {
                 apeStaking.depositBAYC(nfts);
             } else {
@@ -333,7 +342,10 @@ contract StakeProxy is IStakeProxy, Initializable, Ownable, ReentrancyGuard, ERC
             if (_isPairedBaycPool() || _isPairedMaycPool()) {
                 require(bakc.ownerOf(_bakcStaked.tokenId) == address(this), "StakeProxy: not bakc owner");
                 IApeCoinStaking.PairNft[] memory nfts = new IApeCoinStaking.PairNft[](1);
-                nfts[0] = IApeCoinStaking.PairNft({mainTokenId: _apeStaked.tokenId, bakcTokenId: _bakcStaked.tokenId});
+                nfts[0] = IApeCoinStaking.PairNft({
+                    mainTokenId: _apeStaked.tokenId.toUint128(),
+                    bakcTokenId: _bakcStaked.tokenId.toUint128()
+                });
                 IApeCoinStaking.PairNft[] memory emptyNfts;
                 if (_isPairedBaycPool()) {
                     apeStaking.claimBAKC(nfts, emptyNfts, address(this));
