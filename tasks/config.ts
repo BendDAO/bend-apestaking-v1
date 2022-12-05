@@ -34,12 +34,12 @@ export const NETWORKS_RPC_URL: Params<string> = {
 
 export const FEE: Params<string> = {
   [Network.goerli]: "100",
-  [Network.mainnet]: "100",
+  [Network.mainnet]: "400",
 };
 
 export const FEE_RECIPIENT: Params<string> = {
   [Network.goerli]: "0x10855337e1b0D2d11F8f59Ba4b04EC8792A58B61",
-  [Network.mainnet]: "",
+  [Network.mainnet]: "0x472FcC65Fab565f75B1e0E861864A86FE5bcEd7B",
 };
 
 export const WETH: Params<string> = {
@@ -49,7 +49,7 @@ export const WETH: Params<string> = {
 
 export const APE_COIN: Params<string> = {
   [Network.goerli]: "0x701ca86a355dA5E32b70a9c7e8967B4DFaa735dB",
-  [Network.mainnet]: "",
+  [Network.mainnet]: "0x4d224452801ACEd8B2F0aebE155379bb5D594381",
 };
 
 export const APE_COIN_HOLDER: Params<string> = {
@@ -59,7 +59,7 @@ export const APE_COIN_HOLDER: Params<string> = {
 
 export const APE_STAKING: Params<string> = {
   [Network.goerli]: "0xa1d0e0Ac6D1300F47caC9083b23D07F62bB1F833",
-  [Network.mainnet]: "",
+  [Network.mainnet]: "0x5954aB967Bc958940b7EB73ee84797Dc8a2AFbb9",
 };
 
 export const BAYC: Params<string> = {
@@ -89,7 +89,7 @@ export const BAKC: Params<string> = {
 
 export const BNFT_REGISTRY: Params<string> = {
   [Network.goerli]: "0x37A76Db446bDB3EF1b73112a8D5E6868de06464f",
-  [Network.mainnet]: "",
+  [Network.mainnet]: "0x79d922DD382E42A156bC0A354861cDBC4F09110d",
 };
 
 export const BendAddressesProviders: Params<string> = {
@@ -99,5 +99,5 @@ export const BendAddressesProviders: Params<string> = {
 
 export const BendDebtETH: Params<string> = {
   [Network.goerli]: "0x9aB83A4886dCE3C0c1011f9D248249DD3eF64784",
-  [Network.mainnet]: "",
+  [Network.mainnet]: "0x87ddE3A3f4b629E389ce5894c9A1F34A7eeC5648",
 };
