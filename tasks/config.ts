@@ -58,7 +58,7 @@ export const APE_COIN_HOLDER: Params<string> = {
 };
 
 export const APE_STAKING: Params<string> = {
-  [Network.goerli]: "0x7A2113dF0cC592D8ed16a9a2CA7c7c4bd2CE2906",
+  [Network.goerli]: "0xa1d0e0Ac6D1300F47caC9083b23D07F62bB1F833",
   [Network.mainnet]: "",
 };
 

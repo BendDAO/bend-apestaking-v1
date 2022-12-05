@@ -510,7 +510,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
 
     await prepareMatch(param, withLoan);
     invalidApeOffer = { ...param.apeOffer };
-    invalidApeOffer.tokenId = 101;
+    invalidApeOffer.tokenId = 102;
     await (param as any).apeContract.mint(invalidApeOffer.tokenId);
     await expect(
       contracts.bendApeStaking
@@ -521,7 +521,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
     await snapshots.revert("init");
     await prepareMatch(param, withLoan);
     invalidApeOffer = { ...param.apeOffer };
-    invalidApeOffer.tokenId = 101;
+    invalidApeOffer.tokenId = 102;
     await (param as any).apeContract.mint(invalidApeOffer.tokenId);
     await (param as any).apeContract.approve(contracts.lendPool.address, invalidApeOffer.tokenId);
     await contracts.lendPool.borrow(
@@ -759,7 +759,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
 
     await prepareMatch(param, withLoan);
     invalidApeOffer = { ...param.apeOffer };
-    invalidApeOffer.tokenId = 101;
+    invalidApeOffer.tokenId = 102;
     await (param as any).apeContract.mint(invalidApeOffer.tokenId);
     await expect(
       contracts.bendApeStaking.connect(matchSigner).matchWithBakc(invalidApeOffer, param.bakcOffer)
@@ -768,7 +768,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
     await snapshots.revert("init");
     await prepareMatch(param, withLoan);
     invalidApeOffer = { ...param.apeOffer };
-    invalidApeOffer.tokenId = 101;
+    invalidApeOffer.tokenId = 102;
     await (param as any).apeContract.mint(invalidApeOffer.tokenId);
     await (param as any).apeContract.approve(contracts.lendPool.address, invalidApeOffer.tokenId);
     await contracts.lendPool.borrow(
@@ -935,7 +935,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
 
     await prepareMatch(param, withLoan);
     invalidApeOffer = { ...param.apeOffer };
-    invalidApeOffer.tokenId = 101;
+    invalidApeOffer.tokenId = 102;
     await (param as any).apeContract.mint(invalidApeOffer.tokenId);
     await expect(
       contracts.bendApeStaking.connect(matchSigner).matchWithCoin(invalidApeOffer, param.coinOffer)
@@ -944,7 +944,7 @@ makeSuite("BendApeStaking", (contracts: Contracts, env: Env, snapshots: Snapshot
     await snapshots.revert("init");
     await prepareMatch(param, withLoan);
     invalidApeOffer = { ...param.apeOffer };
-    invalidApeOffer.tokenId = 101;
+    invalidApeOffer.tokenId = 102;
     await (param as any).apeContract.mint(invalidApeOffer.tokenId);
     await (param as any).apeContract.approve(contracts.lendPool.address, invalidApeOffer.tokenId);
     await contracts.lendPool.borrow(

@@ -3,37 +3,44 @@ pragma solidity 0.8.9;
 
 interface IApeCoinStaking {
     struct SingleNft {
-        uint256 tokenId;
-        uint256 amount;
-    }
-    struct PairNftWithAmount {
-        uint256 mainTokenId;
-        uint256 bakcTokenId;
-        uint256 amount;
-    }
-    struct PairNft {
-        uint256 mainTokenId;
-        uint256 bakcTokenId;
+        uint32 tokenId;
+        uint224 amount;
     }
 
+    struct PairNft {
+        uint128 mainTokenId;
+        uint128 bakcTokenId;
+    }
+
+    struct PairNftDepositWithAmount {
+        uint32 mainTokenId;
+        uint32 bakcTokenId;
+        uint184 amount;
+    }
+    struct PairNftWithdrawWithAmount {
+        uint32 mainTokenId;
+        uint32 bakcTokenId;
+        uint184 amount;
+        bool isUncommit;
+    }
     struct Position {
         uint256 stakedAmount;
         int256 rewardsDebt;
     }
 
-    struct TimeRange {
-        uint256 startTimestampHour;
-        uint256 endTimestampHour;
-        uint256 rewardsPerHour;
-        uint256 capPerPosition;
+    struct Pool {
+        uint48 lastRewardedTimestampHour;
+        uint16 lastRewardsRangeIndex;
+        uint96 stakedAmount;
+        uint96 accumulatedRewardsPerShare;
+        TimeRange[] timeRanges;
     }
 
-    struct Pool {
-        uint256 lastRewardedTimestampHour;
-        uint256 lastRewardsRangeIndex;
-        uint256 stakedAmount;
-        uint256 accumulatedRewardsPerShare;
-        TimeRange[] timeRanges;
+    struct TimeRange {
+        uint48 startTimestampHour;
+        uint48 endTimestampHour;
+        uint96 rewardsPerHour;
+        uint96 capPerPosition;
     }
 
     struct DashboardStake {
@@ -88,7 +95,8 @@ interface IApeCoinStaking {
 
     function depositMAYC(SingleNft[] calldata _nfts) external;
 
-    function depositBAKC(PairNftWithAmount[] calldata _baycPairs, PairNftWithAmount[] calldata _maycPairs) external;
+    function depositBAKC(PairNftDepositWithAmount[] calldata _baycPairs, PairNftDepositWithAmount[] calldata _maycPairs)
+        external;
 
     function claimBAYC(uint256[] calldata _nfts, address _recipient) external;
 
@@ -104,5 +112,8 @@ interface IApeCoinStaking {
 
     function withdrawMAYC(SingleNft[] calldata _nfts, address _recipient) external;
 
-    function withdrawBAKC(PairNftWithAmount[] calldata _baycPairs, PairNftWithAmount[] calldata _maycPairs) external;
+    function withdrawBAKC(
+        PairNftWithdrawWithAmount[] calldata _baycPairs,
+        PairNftWithdrawWithAmount[] calldata _maycPairs
+    ) external;
 }

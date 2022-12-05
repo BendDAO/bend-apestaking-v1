@@ -191,10 +191,12 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
   });
 
   it("migrateERC721", async () => {
-    await contracts.bayc.mint(200);
-    await contracts.bayc.transferFrom(env.admin.address, contracts.stakeProxy.address, 200);
-    await expect(contracts.stakeProxy.migrateERC721(contracts.bayc.address, env.admin.address, 200)).to.not.reverted;
-    expect(await contracts.bayc.ownerOf(200)).to.eq(env.admin.address);
+    const tokenId = 231;
+    await contracts.bayc.mint(tokenId);
+    await contracts.bayc.transferFrom(env.admin.address, contracts.stakeProxy.address, tokenId);
+    await expect(contracts.stakeProxy.migrateERC721(contracts.bayc.address, env.admin.address, tokenId)).to.not
+      .reverted;
+    expect(await contracts.bayc.ownerOf(tokenId)).to.eq(env.admin.address);
   });
 
   it("stake: revert - caller is not the owner", async () => {
@@ -446,8 +448,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
-        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
-        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
+        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour;
+        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour;
         const time = Math.max(now + 100, startTimestamp);
         const randomTime = fc.integer({ min: time, max: endTimestamp });
         return fc.tuple(fc.constant(v), randomTime);
@@ -506,8 +508,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
-        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
-        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
+        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour;
+        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour;
         const time = Math.max(now + 100, startTimestamp);
         const randomTime = fc.integer({ min: time, max: endTimestamp });
         const randomTimes = fc.tuple(randomTime, randomTime).filter((t) => {
@@ -608,8 +610,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
 
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
-        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
-        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
+        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour;
+        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour;
         const time = Math.max(now + 100, startTimestamp);
         const randomTime = fc.integer({ min: time, max: endTimestamp });
         const randomTimes = fc.tuple(randomTime, randomTime).filter((t) => {
@@ -674,8 +676,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
-        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
-        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
+        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour;
+        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour;
         const time = Math.max(now + 100, startTimestamp);
         const randomTime = fc.integer({ min: time, max: endTimestamp });
         return fc.tuple(fc.constant(v), randomTime);
@@ -717,8 +719,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
-        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
-        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
+        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour;
+        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour;
         const time = Math.max(now + 100, startTimestamp);
         const randomTime = fc.integer({ min: time, max: endTimestamp });
         const randomTimes = fc.tuple(randomTime, randomTime).filter((t) => {
@@ -826,8 +828,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
-        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
-        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
+        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour;
+        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour;
         const time = Math.max(now + 100, startTimestamp);
         const randomTime = fc.integer({ min: time, max: endTimestamp });
         const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
@@ -900,8 +902,8 @@ makeSuite("StakeProxy", (contracts: Contracts, env: Env, snapshots: Snapshots) =
     const now = await latest();
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
-        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour.toNumber();
-        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour.toNumber();
+        const endTimestamp = pools[v.poolId].currentTimeRange.endTimestampHour;
+        const startTimestamp = pools[v.poolId].currentTimeRange.startTimestampHour;
         const time = Math.max(now + 100, startTimestamp);
         const randomTime = fc.integer({ min: time, max: endTimestamp });
         const randomTimes = fc.tuple(randomTime, randomTime, randomTime).filter((t) => {
