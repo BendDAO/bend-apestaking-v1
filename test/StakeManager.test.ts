@@ -5,7 +5,15 @@ import { Contracts, Env, makeSuite, Snapshots } from "./_setup";
 import { BigNumber, constants, Contract } from "ethers";
 
 import { IStakeProxy } from "../typechain-types/contracts/interfaces/IStakeProxy";
-import { getContract, makeBN18, randomPairedStake, randomSingleStake, randomStake, skipHourBlocks } from "./utils";
+import {
+  emptyBytes32,
+  getContract,
+  makeBN18,
+  randomPairedStake,
+  randomSingleStake,
+  randomStake,
+  skipHourBlocks,
+} from "./utils";
 import { advanceBlock, increaseBy, increaseTo, latest } from "./helpers/block-traveller";
 import { impersonateAccount, setBalance } from "@nomicfoundation/hardhat-network-helpers";
 import { parseEvents } from "./helpers/transaction-helper";
@@ -25,6 +33,7 @@ fc.configureGlobal({
 makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots) => {
   let lastRevert: string;
   let pools: any;
+  let mockFlashloanReceiver: Contract;
 
   const getPoolTime = (poolId_: number): number[] => {
     const startTimestamp = pools[poolId_].currentTimeRange.startTimestampHour;
@@ -187,6 +196,21 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     }
     // check ape coin
     expect(await contracts.apeCoin.balanceOf(contracts.stakeManager.address)).to.be.eq(0);
+
+    // check flashLoan lock
+    if (allProxiesUnStaked) {
+      if ((await param.apeContract.ownerOf(param.apeStaked.tokenId)) === param.boundApeContract.address) {
+        await expect(
+          param.boundApeContract
+            .connect(await ethers.getSigner(param.apeStaked.staker))
+            .flashLoan(mockFlashloanReceiver.address, [param.apeStaked.tokenId], emptyBytes32)
+        ).not.reverted;
+      }
+    } else {
+      await expect(
+        param.boundApeContract.flashLoan(mockFlashloanReceiver.address, [param.apeStaked.tokenId], emptyBytes32)
+      ).reverted;
+    }
   };
 
   const assertClaim = async (claimer: string, param: any, claimFor = false) => {
@@ -249,7 +273,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     expect(await coinStaked.share).to.eq(coinStakedStorage.share);
     expect(await coinStaked.coinAmount).to.eq(coinStakedStorage.coinAmount);
 
-    // check bnft interceptor and flashloan locking
+    // check bnft interceptor and flashLoan locking
     if (param.withLoan) {
       expect(
         await param.boundApeContract.isFlashLoanLocked(
@@ -280,9 +304,15 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
 
     // check ape coin
     expect(await contracts.apeCoin.balanceOf(contracts.stakeManager.address)).to.be.eq(0);
+
+    // check flashLoan locked
+    await expect(
+      param.boundApeContract.flashLoan(mockFlashloanReceiver.address, [param.apeStaked.tokenId], emptyBytes32)
+    ).reverted;
   };
 
   before(async () => {
+    mockFlashloanReceiver = await (await ethers.getContractFactory("MockFlashLoanReceiverDummy")).deploy();
     pools = await contracts.apeStaking.getPoolsUI();
   });
   afterEach(async () => {
@@ -1151,4 +1181,123 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       await assertUnStake(unStaker, param);
     }
   }).timeout(40000);
+
+  it("beforeLoanRepaid: stake one pool and repay loan", async () => {
+    const now = await latest();
+    const randomParams = randomStake(env, contracts).chain((v) => {
+      const times = getPoolTime(v.poolId);
+      const randomTime = fc.integer({ min: Math.max(now + 200, times[0]), max: times[1] });
+      return fc.tuple(fc.constant(v), randomTime);
+    });
+    await contracts.weth.approve(contracts.lendPool.address, constants.MaxUint256);
+    await fc.assert(
+      fc
+        .asyncProperty(randomParams, async ([param, time]) => {
+          await prepareStake(param, true);
+          await doStake(param);
+          const proxy = (param as any).proxy;
+
+          await expect(
+            (param as any).boundApeContract.flashLoan(
+              mockFlashloanReceiver.address,
+              [param.apeStaked.tokenId],
+              emptyBytes32
+            )
+          ).reverted;
+
+          await increaseTo(BigNumber.from(time));
+          await advanceBlock();
+          await expect(
+            contracts.lendPool.repay(param.apeStaked.collection, param.apeStaked.tokenId, constants.MaxUint256)
+          )
+            .to.emit(contracts.stakeManager, "UnStaked")
+            .withArgs(proxy.address);
+
+          expect(await contracts.stakeManager.getStakedProxies(param.apeStaked.collection, param.apeStaked.tokenId)).to
+            .be.empty;
+          expect(await (param as any).apeContract.ownerOf(param.apeStaked.tokenId)).to.eq(param.apeStaked.staker);
+
+          expect(
+            await (param as any).boundApeContract.isFlashLoanLocked(
+              param.apeStaked.tokenId,
+              contracts.lendPoolLoan.address,
+              contracts.stakeManager.address
+            )
+          ).to.be.false;
+          if (param.poolId === 3) {
+            expect(await contracts.bakc.ownerOf(param.bakcStaked.tokenId)).to.eq(param.bakcStaked.staker);
+          }
+          // check ape coin
+          expect(await contracts.apeCoin.balanceOf(contracts.stakeManager.address)).to.be.eq(0);
+        })
+        .beforeEach(async () => {
+          await snapshots.revert("init");
+        })
+    );
+  });
+
+  it("beforeLoanRepaid: stake two pool and repay loan", async () => {
+    const randomParams = fc.tuple(randomSingleStake(env, contracts), randomPairedStake(env, contracts)).filter((v) => {
+      return (
+        v[0].apeStaked.collection === v[1].apeStaked.collection &&
+        v[0].apeStaked.tokenId === v[1].apeStaked.tokenId &&
+        v[0].apeStaked.staker === v[1].apeStaked.staker
+      );
+    });
+    await contracts.weth.approve(contracts.lendPool.address, constants.MaxUint256);
+    await fc.assert(
+      fc
+        .asyncProperty(randomParams, async ([param1, param2]) => {
+          await prepareStake(param1, true);
+          await doStake(param1);
+          const proxy1 = (param1 as any).proxy;
+
+          await expect(
+            (param1 as any).boundApeContract.flashLoan(
+              mockFlashloanReceiver.address,
+              [param1.apeStaked.tokenId],
+              emptyBytes32
+            )
+          ).reverted;
+
+          await prepareStake(param2, false);
+          await doStake(param2);
+          const proxy2 = (param2 as any).proxy;
+
+          await expect(
+            (param1 as any).boundApeContract.flashLoan(
+              mockFlashloanReceiver.address,
+              [param1.apeStaked.tokenId],
+              emptyBytes32
+            )
+          ).reverted;
+
+          await expect(
+            contracts.lendPool.repay(param1.apeStaked.collection, param1.apeStaked.tokenId, constants.MaxUint256)
+          )
+            .to.emit(contracts.stakeManager, "UnStaked")
+            .withArgs(proxy1.address)
+            .to.emit(contracts.stakeManager, "UnStaked")
+            .withArgs(proxy2.address);
+
+          expect(await contracts.stakeManager.getStakedProxies(param1.apeStaked.collection, param1.apeStaked.tokenId))
+            .to.be.empty;
+          expect(await (param1 as any).apeContract.ownerOf(param1.apeStaked.tokenId)).to.eq(param1.apeStaked.staker);
+
+          expect(
+            await (param1 as any).boundApeContract.isFlashLoanLocked(
+              param1.apeStaked.tokenId,
+              contracts.lendPoolLoan.address,
+              contracts.stakeManager.address
+            )
+          ).to.be.false;
+          expect(await contracts.bakc.ownerOf(param2.bakcStaked.tokenId)).to.eq(param2.bakcStaked.staker);
+          // check ape coin
+          expect(await contracts.apeCoin.balanceOf(contracts.stakeManager.address)).to.be.eq(0);
+        })
+        .beforeEach(async () => {
+          await snapshots.revert("init");
+        })
+    );
+  });
 });

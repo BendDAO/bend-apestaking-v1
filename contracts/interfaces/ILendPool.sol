@@ -17,4 +17,10 @@ interface ILendPool {
         address onBehalfOf,
         uint16 referralCode
     ) external;
+
+    function repay(
+        address nftAsset,
+        uint256 nftTokenId,
+        uint256 amount
+    ) external returns (uint256, bool);
 }
