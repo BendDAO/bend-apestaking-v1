@@ -380,7 +380,7 @@ contract BendApeStaking is IBendApeStaking, ReentrancyGuardUpgradeable {
 
     function _validateOfferNonce(address offeror, uint256 nonce) internal view returns (bool) {
         if (msg.sender == offeror) {
-            return nonce == 0;
+            return true;
         }
         return !_isCancelled[offeror][nonce];
     }

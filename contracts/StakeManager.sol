@@ -388,16 +388,16 @@ contract StakeManager is
             // withdraw ape coin for staker
             uint256 amount = proxy.withdraw(staker);
             if (amount > 0) {
-                emit Withdrawn(staker, amount);
+                emit PrincipalWithdrawn(address(proxy), staker, amount);
             }
 
             // claim rewards for staker
             (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);
             if (toStaker > 0) {
-                emit Claimed(staker, toStaker);
+                emit RewardsClaimed(address(proxy), staker, toStaker);
             }
             if (toFee > 0) {
-                emit FeePaid(staker, feeRecipient, toFee);
+                emit ProtocolFeePaid(address(proxy), staker, feeRecipient, toFee);
             }
         }
     }
@@ -472,10 +472,10 @@ contract StakeManager is
         (uint256 toStaker, uint256 toFee) = proxy.claim(staker, _fee, feeRecipient);
 
         if (toStaker > 0) {
-            emit Claimed(staker, toStaker);
+            emit RewardsClaimed(address(proxy), staker, toStaker);
         }
         if (toFee > 0) {
-            emit FeePaid(staker, feeRecipient, toFee);
+            emit ProtocolFeePaid(address(proxy), staker, feeRecipient, toFee);
         }
     }
 
