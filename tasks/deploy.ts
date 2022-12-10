@@ -101,6 +101,23 @@ task("deploy:Config", "Config Contracts").setAction(async (_, { network, run }) 
   await waitForTx(await stakeManager.connect(deployer).updateFeeRecipient(feeRecipient));
 });
 
+task("prepareUpgrade", "Deploy new implmentation for upgrade")
+  .addParam("proxyid", "The proxy contract id")
+  .addParam("implid", "The new impl contract id")
+  .setAction(async ({ proxyid, implid }, { ethers, upgrades, run }) => {
+    await run("set-DRE");
+    await run("compile");
+    const proxyAddress = await getContractAddressFromDB(proxyid);
+    const upgradeable = await ethers.getContractFactory(implid);
+    console.log(`Preparing ${proxyid} upgrade at proxy ${proxyAddress}`);
+    // @ts-ignore
+    const implAddress = await upgrades.prepareUpgrade(proxyAddress, upgradeable);
+    console.log("Implmentation at:", implAddress);
+    const adminAddress = await upgrades.erc1967.getAdminAddress(proxyAddress);
+    console.log("Proxy admin at:", adminAddress);
+    await verifyEtherscanContract(implAddress.toString(), []);
+  });
+
 task("upgrade", "upgrade contract")
   .addParam("proxyid", "The proxy contract id")
   .addOptionalParam("implid", "The new impl contract id")
