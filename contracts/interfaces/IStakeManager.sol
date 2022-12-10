@@ -14,6 +14,12 @@ interface IStakeManager {
 
     event UnStaked(address indexed proxy);
 
+    // following 3 old events are obsolete, just for compatability with testnet
+    event FeePaid(address indexed payer, address indexed feeRecipient, uint256 apeCoinAmount);
+    event Claimed(address indexed staker, uint256 apeCoinAmount);
+    event Withdrawn(address indexed staker, uint256 apeCoinAmount);
+
+    // new events
     event ProtocolFeePaid(
         address indexed proxy,
         address indexed payer,
