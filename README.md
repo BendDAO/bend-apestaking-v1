@@ -23,4 +23,18 @@ This project contains all smart contracts used for the current BendDAO ApeCoin S
 
 ## Documentation
 
-TBD
+The documentation for the smart contracts is available [TBD]().
+
+## Audits
+
+[Verilog Solutions](https://www.verilog.solutions/audits/bend_apecoin_staking/)
+
+### Run tests
+
+- TypeScript tests are included in the `test` folder at the root of this repo.
+- Solidity tests are included in the `test` folder in the `contracts` folder.
+
+```shell
+yarn install
+yarn test
+```

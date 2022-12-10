@@ -14,9 +14,14 @@ interface IStakeManager {
 
     event UnStaked(address indexed proxy);
 
-    event FeePaid(address indexed payer, address indexed feeRecipient, uint256 apeCoinAmount);
-    event Claimed(address indexed staker, uint256 apeCoinAmount);
-    event Withdrawn(address indexed staker, uint256 apeCoinAmount);
+    event ProtocolFeePaid(
+        address indexed proxy,
+        address indexed payer,
+        address indexed feeRecipient,
+        uint256 apeCoinAmount
+    );
+    event RewardsClaimed(address indexed proxy, address indexed staker, uint256 apeCoinAmount);
+    event PrincipalWithdrawn(address indexed proxy, address indexed staker, uint256 apeCoinAmount);
 
     function getStakedProxies(address nftAsset, uint256 tokenId) external view returns (address[] memory);
 
