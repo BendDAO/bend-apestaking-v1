@@ -115,7 +115,32 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     const bakcStakerTotalStaked = await contracts.stakeManager.totalStaked(param.proxy.address, bakcStaked.staker);
     const coinStakerTotalStaked = await contracts.stakeManager.totalStaked(param.proxy.address, coinStaked.staker);
 
-    const fee = await contracts.stakeManager.fee();
+    let fee = await contracts.stakeManager.fee();
+
+    // assert fee should be zero if all staker are one user
+    if (param.poolId === 1 || param.poolId === 2) {
+      // no coin staker
+      if (param.coinStaked.staker === constants.AddressZero) {
+        fee = constants.Zero;
+      } else {
+        if (param.apeStaked.staker === param.coinStaked.staker) {
+          fee = constants.Zero;
+        }
+      }
+    }
+
+    if (param.poolId === 3) {
+      // no coin staker
+      if (param.coinStaked.staker === constants.AddressZero) {
+        if (param.apeStaked.staker === param.bakcStaked.staker) {
+          fee = constants.Zero;
+        }
+      } else {
+        if (param.apeStaked.staker === param.coinStaked.staker && param.apeStaked.staker === param.bakcStaked.staker) {
+          fee = constants.Zero;
+        }
+      }
+    }
 
     const apeStakerRewards = await param.proxy.claimable(apeStaked.staker, fee);
     const apeStakerFee = (await param.proxy.claimable(apeStaked.staker, 0)).sub(apeStakerRewards);
