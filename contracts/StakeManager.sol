@@ -392,7 +392,8 @@ contract StakeManager is
             }
 
             // claim rewards for staker
-            (uint256 toStaker, uint256 toFee) = proxy.claim(staker, fee, feeRecipient);
+            uint256 _fee = _getFee(proxy);
+            (uint256 toStaker, uint256 toFee) = proxy.claim(staker, _fee, feeRecipient);
             if (toStaker > 0) {
                 emit RewardsClaimed(address(proxy), staker, toStaker);
             }
