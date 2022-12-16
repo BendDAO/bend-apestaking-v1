@@ -23,7 +23,7 @@ This project contains all smart contracts used for the current BendDAO ApeCoin S
 
 ## Documentation
 
-The documentation for the smart contracts is available [TBD]().
+The documentation for the smart contracts is available [here](https://docs.benddao.xyz/developers/bend-ape-staking/bendapestaking).
 
 ## Audits
 
