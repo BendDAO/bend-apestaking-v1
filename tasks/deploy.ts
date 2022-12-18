@@ -83,6 +83,14 @@ task("deploy:BendApeStaking", "Deploy BendApeStaking").setAction(async (_, { net
   );
 });
 
+task("deploy:BendApeStakedVoting", "Deploy BendApeStakedVoting").setAction(async (_, { network, run }) => {
+  await run("set-DRE");
+  await run("compile");
+
+  const stakeManager = await getContractAddressFromDB("StakeManager");
+  await deployContract("BendApeStakedVoting", [stakeManager], true);
+});
+
 task("deploy:Config", "Config Contracts").setAction(async (_, { network, run }) => {
   await run("set-DRE");
   await run("compile");

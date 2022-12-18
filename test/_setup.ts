@@ -16,6 +16,7 @@ import {
   IBNFTRegistry,
   ILendPoolLoan,
   IDebtToken,
+  BendApeStakedVoting,
 } from "../typechain-types";
 import {
   APE_COIN,
@@ -71,6 +72,7 @@ export interface Contracts {
   stakeProxy: IStakeProxy;
   stakeManager: IStakeManager;
   bendApeStaking: IBendApeStaking;
+  stakedVoting: BendApeStakedVoting;
 }
 
 export async function setupEnv(env: Env, contracts: Contracts): Promise<void> {
@@ -173,6 +175,8 @@ export async function setupContracts(): Promise<Contracts> {
     bendAddressesProvider.address
   );
 
+  const stakedVoting = await deployContract("BendApeStakedVoting", [stakeManager.address]);
+
   /** Return contracts
    */
   return {
@@ -193,6 +197,7 @@ export async function setupContracts(): Promise<Contracts> {
     stakeProxy,
     stakeManager,
     bendApeStaking,
+    stakedVoting,
   } as Contracts;
 }
 
