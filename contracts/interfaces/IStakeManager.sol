@@ -70,4 +70,14 @@ interface IStakeManager {
         address nftAsset,
         uint256 nftTokenId
     ) external;
+
+    function setFlashLoanLocking(
+        address nftAsset,
+        uint256 tokenId,
+        bool locked
+    ) external;
+
+    function approveFlashoanLocker(address operator, bool approved) external;
+
+    function isFlashoanLockerApproved(address operator) external view returns (bool);
 }
