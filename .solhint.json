@@ -10,6 +10,6 @@
     "var-name-mixedcase": "off",
     "avoid-low-level-calls": "off",
     "no-empty-blocks": "off",
-    "max-states-count": ["warn", 16]
+    "max-states-count": ["warn", 20]
   }
 }

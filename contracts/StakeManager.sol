@@ -68,6 +68,8 @@ contract StakeManager is
 
     mapping(address => address) private _approvedOperators;
 
+    mapping(address => bool) private _approvedLocker;
+
     modifier onlyMatcher() {
         require(_msgSender() == matcher, "StakeManager: caller must be matcher");
         _;
@@ -253,6 +255,25 @@ contract StakeManager is
 
     function revokeOperator() external override {
         delete _approvedOperators[_msgSender()];
+    }
+
+    function approveFlashoanLocker(address operator, bool approved) external override onlyOwner {
+        _approvedLocker[operator] = approved;
+    }
+
+    function setFlashLoanLocking(
+        address nftAsset,
+        uint256 tokenId,
+        bool locked
+    ) external override {
+        require(_approvedLocker[msg.sender], "StakeManager: invalid locker");
+        IBNFT boundApe = _getBNFT(nftAsset);
+        IERC721Upgradeable apeNft = IERC721Upgradeable(nftAsset);
+        address apeActualOwner = apeNft.ownerOf(tokenId);
+        require(apeActualOwner == address(boundApe), "StakeManager: no bound ape");
+        address boundApeMinter = boundApe.minterOf(tokenId);
+        require(boundApeMinter == address(this), "StakeManager: invalid bound ape");
+        boundApe.setFlashLoanLocking(tokenId, msg.sender, locked);
     }
 
     function unStake(IStakeProxy proxy) external override onlyStakerOrOperator(proxy) nonReentrant {
@@ -593,6 +614,10 @@ contract StakeManager is
 
     function isApproved(address staker, address operator) external view returns (bool) {
         return _approvedOperators[staker] == operator;
+    }
+
+    function isFlashoanLockerApproved(address operator) external view returns (bool) {
+        return _approvedLocker[operator];
     }
 
     receive() external payable {

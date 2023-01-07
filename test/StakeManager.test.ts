@@ -531,6 +531,10 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     );
 
     await expect(
+      contracts.stakeManager.connect(env.accounts[1]).approveFlashoanLocker(constants.AddressZero, true)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+
+    await expect(
       contracts.stakeManager.connect(env.accounts[1]).updateFeeRecipient(constants.AddressZero)
     ).to.be.revertedWith("Ownable: caller is not the owner");
 
@@ -957,6 +961,51 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       await contracts.stakeManager.connect(await ethers.getSigner(staker)).revokeOperator();
       expect(await contracts.stakeManager.isApproved(staker, operator)).be.false;
     }
+  });
+
+  it("approveFlashoanLocker: work as expected", async () => {
+    expect(await contracts.stakeManager.isFlashoanLockerApproved(env.admin.address)).be.false;
+    await contracts.stakeManager.approveFlashoanLocker(env.admin.address, true);
+    expect(await contracts.stakeManager.isFlashoanLockerApproved(env.admin.address)).be.true;
+    await contracts.stakeManager.approveFlashoanLocker(env.admin.address, false);
+    expect(await contracts.stakeManager.isFlashoanLockerApproved(env.admin.address)).be.false;
+  });
+
+  it("setFlashLoanLocking: work as expected", async () => {
+    const param = fc.sample(randomStake(env, contracts), 1)[0];
+    await expect(
+      contracts.stakeManager.setFlashLoanLocking(param.apeStaked.collection, param.apeStaked.tokenId, true)
+    ).to.be.revertedWith("StakeManager: invalid locker");
+    await contracts.stakeManager.approveFlashoanLocker(env.admin.address, true);
+    await snapshots.capture("setFlashLoanLocking");
+    await prepareStake(param, false);
+    await expect(
+      contracts.stakeManager.setFlashLoanLocking(param.apeStaked.collection, param.apeStaked.tokenId, true)
+    ).to.be.revertedWith("StakeManager: no bound ape");
+
+    await snapshots.revert("setFlashLoanLocking");
+    await prepareStake(param, true);
+    await expect(
+      contracts.stakeManager.setFlashLoanLocking(param.apeStaked.collection, param.apeStaked.tokenId, true)
+    ).to.be.revertedWith("StakeManager: invalid bound ape");
+    await snapshots.revert("setFlashLoanLocking");
+    await prepareStake(param, false);
+    await doStake(param);
+    expect(
+      await (param as any).boundApeContract.isFlashLoanLocked(
+        param.apeStaked.tokenId,
+        contracts.stakeManager.address,
+        env.admin.address
+      )
+    ).be.false;
+    await contracts.stakeManager.setFlashLoanLocking(param.apeStaked.collection, param.apeStaked.tokenId, true);
+    expect(
+      await (param as any).boundApeContract.isFlashLoanLocked(
+        param.apeStaked.tokenId,
+        contracts.stakeManager.address,
+        env.admin.address
+      )
+    ).be.true;
   });
 
   it("claim: claim by all staker before unStake, same proxy", async () => {

@@ -16,8 +16,8 @@ import { findPrivateKey } from "./helpers/hardhat-keys";
 const NAME = "BendApeStaking";
 const VERSION = "1";
 
-const APE_TOKEN_ID = 101;
-const BAKC_TOKEN_ID = 102;
+export const APE_TOKEN_ID = 101;
+export const BAKC_TOKEN_ID = 102;
 
 export function makeBN18(num: string | number): BigNumber {
   return ethers.utils.parseUnits(num.toString(), 18);
