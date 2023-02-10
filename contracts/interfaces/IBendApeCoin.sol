@@ -13,7 +13,7 @@ interface IBendApeCoin is IERC4626Upgradeable {
 
     function compound() external;
 
-    function claimAndDeposit(address[] calldata proxys) external returns (uint256);
+    function claimAndDeposit(address[] calldata proxies) external returns (uint256);
 
-    function claimAndDepositFor(address[] calldata proxys, address staker) external returns (uint256);
+    function claimAndDepositFor(address[] calldata proxies, address staker) external returns (uint256);
 }
