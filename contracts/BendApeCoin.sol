@@ -160,19 +160,19 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
         _depositApeCoin();
     }
 
-    function claimAndDeposit(address[] calldata proxys) external returns (uint256) {
-        return _claimAndDepositFor(proxys, msg.sender);
+    function claimAndDeposit(address[] calldata proxies) external returns (uint256) {
+        return _claimAndDepositFor(proxies, msg.sender);
     }
 
-    function claimAndDepositFor(address[] calldata proxys, address staker) external returns (uint256) {
-        return _claimAndDepositFor(proxys, staker);
+    function claimAndDepositFor(address[] calldata proxies, address staker) external returns (uint256) {
+        return _claimAndDepositFor(proxies, staker);
     }
 
-    function _claimAndDepositFor(address[] calldata proxys, address staker) internal returns (uint256 shares) {
+    function _claimAndDepositFor(address[] calldata proxies, address staker) internal returns (uint256 shares) {
         IERC20Upgradeable apeCoin = IERC20Upgradeable(asset());
         uint256 balanceBefore = apeCoin.balanceOf(staker);
-        for (uint256 i = 0; i < proxys.length; i++) {
-            stakeManager.claimFor(IStakeProxy(proxys[i]), staker);
+        for (uint256 i = 0; i < proxies.length; i++) {
+            stakeManager.claimFor(IStakeProxy(proxies[i]), staker);
         }
         uint256 rewards = apeCoin.balanceOf(staker) - balanceBefore;
         if (rewards > 0) {
