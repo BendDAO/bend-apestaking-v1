@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { task } from "hardhat/config";
-import { IStakeManager } from "../typechain-types";
+import { utils } from "ethers";
+import { IBendApeCoin } from "../typechain-types";
 import {
   APE_COIN,
   APE_STAKING,
@@ -13,6 +14,7 @@ import {
   FEE_RECIPIENT,
   getParams,
   MAYC,
+  MIN_COMPOUND_PARAMS,
   WETH,
 } from "./config";
 import {
@@ -63,6 +65,33 @@ task("deploy:StakeManager", "Deploy StakeManager").setAction(async (_, { network
   );
 });
 
+task("deploy:BendApeCoin", "Deploy BendApeCoin").setAction(async (_, { network, run }) => {
+  await run("set-DRE");
+  await run("compile");
+  const apeCoin = getParams(APE_COIN, network.name);
+  const apeStaking = getParams(APE_STAKING, network.name);
+  const stakeManager = await getContractAddressFromDB("StakeManager");
+  await deployProxyContract("BendApeCoin", [apeStaking, apeCoin, stakeManager], true);
+});
+
+task("deploy:config:BendApeCoin", "Coinfig BendApeCoin").setAction(async (_, { network, run }) => {
+  await run("set-DRE");
+  await run("compile");
+  const deployer = await getDeploySigner();
+  const bendApeCoin = await getContractFromDB<IBendApeCoin>("BendApeCoin");
+
+  const fee = getParams(FEE, network.name);
+  const feeRecipient = getParams(FEE_RECIPIENT, network.name);
+  const minCompound = getParams(MIN_COMPOUND_PARAMS, network.name);
+
+  await waitForTx(await bendApeCoin.connect(deployer).updateFee(fee));
+  await waitForTx(await bendApeCoin.connect(deployer).updateFeeRecipient(feeRecipient));
+  await waitForTx(
+    await bendApeCoin.connect(deployer).updateMinCompoundAmount(utils.parseUnits(minCompound[0].toString(), 18))
+  );
+  await waitForTx(await bendApeCoin.connect(deployer).updateMinCompoundInterval(minCompound[1]));
+});
+
 task("deploy:BendApeStaking", "Deploy BendApeStaking").setAction(async (_, { network, run }) => {
   await run("set-DRE");
   await run("compile");
@@ -81,24 +110,6 @@ task("deploy:BendApeStaking", "Deploy BendApeStaking").setAction(async (_, { net
     [bayc, mayc, bakc, bBayc, bMayc, apeCoin, stakeManager, bendAddressesProvider],
     true
   );
-});
-
-task("deploy:Config", "Config Contracts").setAction(async (_, { network, run }) => {
-  await run("set-DRE");
-  await run("compile");
-
-  const deployer = await getDeploySigner();
-
-  const stakeManager = await getContractFromDB<IStakeManager>("StakeManager");
-  const bendApeStaking = getContractAddressFromDB("BendApeStaking");
-
-  const fee = getParams(FEE, network.name);
-  const feeRecipient = getParams(FEE_RECIPIENT, network.name);
-
-  // config contracts
-  await waitForTx(await stakeManager.connect(deployer).setMatcher(bendApeStaking));
-  await waitForTx(await stakeManager.connect(deployer).updateFee(fee));
-  await waitForTx(await stakeManager.connect(deployer).updateFeeRecipient(feeRecipient));
 });
 
 task("prepareUpgrade", "Deploy new implmentation for upgrade")

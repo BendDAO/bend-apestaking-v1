@@ -85,6 +85,8 @@ interface IApeCoinStaking {
 
     function nftPosition(uint256 poolId, uint256 tokenId) external view returns (Position memory);
 
+    function addressPosition(address addr) external view returns (Position memory);
+
     function pendingRewards(
         uint256 _poolId,
         address _address,
@@ -97,6 +99,10 @@ interface IApeCoinStaking {
 
     function depositBAKC(PairNftDepositWithAmount[] calldata _baycPairs, PairNftDepositWithAmount[] calldata _maycPairs)
         external;
+
+    function depositSelfApeCoin(uint256 _amount) external;
+
+    function claimSelfApeCoin() external;
 
     function claimBAYC(uint256[] calldata _nfts, address _recipient) external;
 
@@ -116,4 +122,6 @@ interface IApeCoinStaking {
         PairNftWithdrawWithAmount[] calldata _baycPairs,
         PairNftWithdrawWithAmount[] calldata _maycPairs
     ) external;
+
+    function withdrawSelfApeCoin(uint256 _amount) external;
 }

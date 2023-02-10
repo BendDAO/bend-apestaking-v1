@@ -12,6 +12,8 @@ import { TypedDataDomain } from "@ethersproject/abstract-signer";
 import { DataTypes } from "../typechain-types/contracts/interfaces/IBendApeStaking";
 import { signTypedData } from "./helpers/signature-helper";
 import { findPrivateKey } from "./helpers/hardhat-keys";
+import { parseEvents } from "./helpers/transaction-helper";
+import { IStakeProxy } from "../typechain-types/contracts/interfaces/IStakeProxy";
 
 const NAME = "BendApeStaking";
 const VERSION = "1";
@@ -19,7 +21,7 @@ const VERSION = "1";
 export const APE_TOKEN_ID = 101;
 export const BAKC_TOKEN_ID = 102;
 
-export function makeBN18(num: string | number): BigNumber {
+export function makeBN18(num: any): BigNumber {
   return ethers.utils.parseUnits(num.toString(), 18);
 }
 
@@ -640,4 +642,67 @@ export const _signCoinOffer = async (
     verifyingContract: matcher,
   };
   return await signTypedData(privateKey, types, values, domain);
+};
+
+export const prepareStake = async (contracts: Contracts, param: any, withLoan_: boolean): Promise<any> => {
+  param.withLoan = withLoan_;
+  param.apeContract = await getContract("MintableERC721", param.apeStaked.collection);
+  const bnft = await contracts.bnftRegistry.getBNFTAddresses(param.apeStaked.collection);
+  param.boundApeContract = await getContract("IBNFT", bnft[0]);
+  const apeStaker = await ethers.getSigner(await param.apeStaked.staker);
+  let apeOwner = constants.AddressZero;
+  try {
+    apeOwner = await param.apeContract.ownerOf(param.apeStaked.tokenId);
+  } catch (error) {}
+  if (apeOwner === constants.AddressZero) {
+    await param.apeContract.connect(apeStaker).mint(await param.apeStaked.tokenId);
+    if (param.withLoan) {
+      await param.apeContract.connect(apeStaker).approve(contracts.lendPool.address, param.apeStaked.tokenId);
+      await contracts.lendPool
+        .connect(apeStaker)
+        .borrow(
+          contracts.weth.address,
+          makeBN18("0.001"),
+          param.apeStaked.collection,
+          param.apeStaked.tokenId,
+          param.apeStaked.staker,
+          0
+        );
+    } else {
+      await param.apeContract
+        .connect(apeStaker)
+        .transferFrom(param.apeStaked.staker, contracts.stakeManager.address, param.apeStaked.tokenId);
+    }
+  }
+
+  if (param.poolId === 3) {
+    const bakcStaker = await ethers.getSigner(await param.bakcStaked.staker);
+    try {
+      await contracts.bakc.connect(bakcStaker).mint(await param.bakcStaked.tokenId);
+      await contracts.bakc
+        .connect(bakcStaker)
+        .transferFrom(param.bakcStaked.staker, contracts.stakeManager.address, param.bakcStaked.tokenId);
+    } catch (error) {}
+  }
+
+  const totalStaked = BigNumber.from(param.apeStaked.coinAmount)
+    .add(await param.bakcStaked.coinAmount)
+    .add(await param.coinStaked.coinAmount);
+
+  await contracts.apeCoin.transfer(contracts.stakeManager.address, totalStaked);
+  return param;
+};
+
+export const randomWithLoan = fc.boolean();
+
+export const doStake = async (contracts: Contracts, param: any) => {
+  const tx = await contracts.stakeManager.stake(param.apeStaked, param.bakcStaked, param.coinStaked);
+  const events = parseEvents(await tx.wait(), contracts.stakeManager.interface);
+  const stakedEvent = events.Staked;
+  if (stakedEvent) {
+    param.proxy = await getContract<IStakeProxy>("IStakeProxy", stakedEvent.proxy);
+    return param;
+  } else {
+    throw new Error("match error");
+  }
 };
