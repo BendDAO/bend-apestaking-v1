@@ -101,3 +101,8 @@ export const BendDebtETH: Params<string> = {
   [Network.goerli]: "0x9aB83A4886dCE3C0c1011f9D248249DD3eF64784",
   [Network.mainnet]: "0x87ddE3A3f4b629E389ce5894c9A1F34A7eeC5648",
 };
+
+export const MIN_COMPOUND_PARAMS: Params<number[]> = {
+  [Network.goerli]: [10, 360],
+  [Network.mainnet]: [100, 3600],
+};
