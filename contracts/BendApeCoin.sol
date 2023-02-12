@@ -10,8 +10,6 @@ import {IBendApeCoin} from "./interfaces/IBendApeCoin.sol";
 import {IStakeProxy} from "./interfaces/IStakeProxy.sol";
 import {PercentageMath} from "./libraries/PercentageMath.sol";
 
-import "hardhat/console.sol";
-
 contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
     using PercentageMath for uint256;
     uint256 public constant APE_COIN_POOL_ID = 0;
