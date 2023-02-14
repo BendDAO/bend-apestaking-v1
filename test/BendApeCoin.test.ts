@@ -173,6 +173,7 @@ makeSuite("BendApeCoin", (contracts: Contracts, env: Env, snapshots: Snapshots) 
   const assertDeposit = async (staker: SignerWithAddress, amount: BigNumber, claim: boolean, deposit: boolean) => {
     await skipHourBlocks();
     const now = await latest();
+    const assetBalance = await contracts.bendApeCoin.assetBalanceOf(staker.address);
     const previewDepisit = await contracts.bendApeCoin.previewDeposit(amount);
     const computedShare = await convertToShare(amount);
 
@@ -219,7 +220,7 @@ makeSuite("BendApeCoin", (contracts: Contracts, env: Env, snapshots: Snapshots) 
         [staker.address, feeRecipient, contracts.bendApeCoin.address, contracts.apeStaking.address],
         [constants.Zero.sub(amount), feeChange, bChange, aChange]
       );
-
+    expect(await contracts.bendApeCoin.assetBalanceOf(staker.address)).closeTo(assetBalance.add(amount), 10);
     expect(await contracts.bendApeCoin.totalAssets()).eq(await totalUnderlingAsset());
   };
 
@@ -401,6 +402,7 @@ makeSuite("BendApeCoin", (contracts: Contracts, env: Env, snapshots: Snapshots) 
   });
 
   it("claimAndDepositFor", async () => {
+    await snapshots.revert("init");
     const now = await latest();
     const randomParams = () => {
       return randomStake(env, contracts).chain((v) => {
