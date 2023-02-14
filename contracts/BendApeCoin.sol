@@ -179,4 +179,8 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
             _deposit(staker, staker, rewards, shares);
         }
     }
+
+    function assetBalanceOf(address account) external view override returns (uint256) {
+        return convertToAssets(balanceOf(account));
+    }
 }
