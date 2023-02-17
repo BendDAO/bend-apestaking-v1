@@ -60,7 +60,7 @@ makeSuite("BendApeCoin", (contracts: Contracts, env: Env, snapshots: Snapshots) 
     await expect(contracts.bendApeCoin.updateFeeRecipient(constants.AddressZero)).revertedWith(
       "BendApeCoin: fee recipient can't be zero address"
     );
-    await expect(contracts.bendApeCoin.updateFee(10001)).revertedWith("BendApeCoin: fee overflow");
+    await expect(contracts.bendApeCoin.updateFee(1001)).revertedWith("BendApeCoin: fee overflow");
     feeRecipient = env.admin.address;
     fee = 500;
     await contracts.bendApeCoin.updateFeeRecipient(feeRecipient);
@@ -130,6 +130,16 @@ makeSuite("BendApeCoin", (contracts: Contracts, env: Env, snapshots: Snapshots) 
     await expect(
       contracts.bendApeCoin.connect(env.accounts[1]).updateFeeRecipient(constants.AddressZero)
     ).to.be.revertedWith("Ownable: caller is not the owner");
+  });
+
+  it("not supported", async () => {
+    await expect(contracts.bendApeCoin.deposit(constants.Zero, constants.AddressZero)).to.be.revertedWith(
+      "BendApeCoin: not supported"
+    );
+
+    await expect(contracts.bendApeCoin.mint(constants.Zero, constants.AddressZero)).to.be.revertedWith(
+      "BendApeCoin: not supported"
+    );
   });
 
   const pendingRewards = async () => {
@@ -213,7 +223,7 @@ makeSuite("BendApeCoin", (contracts: Contracts, env: Env, snapshots: Snapshots) 
 
     // console.log(`deposit ${amount}, will ${willClaim ? "" : "not "}claim, will ${willDeposit ? "" : "not "}deposit`);
 
-    await expect(contracts.bendApeCoin.connect(staker).deposit(amount, staker.address))
+    await expect(contracts.bendApeCoin.connect(staker).depositTest(amount, staker.address))
       .changeTokenBalance(contracts.bendApeCoin, staker.address, previewDepisit)
       .changeTokenBalances(
         contracts.apeCoin,

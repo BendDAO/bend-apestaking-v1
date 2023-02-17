@@ -13,6 +13,9 @@ import {PercentageMath} from "./libraries/PercentageMath.sol";
 contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
     using PercentageMath for uint256;
     uint256 public constant APE_COIN_POOL_ID = 0;
+    uint256 private constant APE_COIN_PRECISION = 1e18;
+    uint256 private constant MIN_DEPOSIT = 1 * APE_COIN_PRECISION;
+    uint256 private constant MAX_FEE = 1000;
 
     IApeCoinStaking public apeStaking;
     IStakeManager public stakeManager;
@@ -39,8 +42,7 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
         apeStaking = apeStaking_;
         stakeManager = stakeManager_;
         apeCoin_.approve(address(apeStaking_), type(uint256).max);
-        // ape staking MIN_DEPOSIT
-        minCompoundAmount = 1e18;
+        minCompoundAmount = MIN_DEPOSIT;
     }
 
     function updateMinCompoundAmount(uint256 minAmount) external override onlyOwner {
@@ -57,7 +59,7 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
     }
 
     function updateFee(uint256 fee_) external override onlyOwner {
-        require(fee_ <= PercentageMath.PERCENTAGE_FACTOR, "BendApeCoin: fee overflow");
+        require(fee_ <= MAX_FEE, "BendApeCoin: fee overflow");
         fee = fee_;
     }
 
@@ -182,5 +184,13 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
 
     function assetBalanceOf(address account) external view override returns (uint256) {
         return convertToAssets(balanceOf(account));
+    }
+
+    function deposit(uint256, address) public pure override(ERC4626Upgradeable, IERC4626Upgradeable) returns (uint256) {
+        revert("BendApeCoin: not supported");
+    }
+
+    function mint(uint256, address) public pure override(ERC4626Upgradeable, IERC4626Upgradeable) returns (uint256) {
+        revert("BendApeCoin: not supported");
     }
 }
