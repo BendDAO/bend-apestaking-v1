@@ -3,19 +3,20 @@ pragma solidity 0.8.9;
 import {ERC4626Upgradeable, IERC4626Upgradeable, IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {MathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import {IApeCoinStaking} from "./interfaces/IApeCoinStaking.sol";
 import {IStakeManager} from "./interfaces/IStakeManager.sol";
 import {IBendApeCoin} from "./interfaces/IBendApeCoin.sol";
 import {IStakeProxy} from "./interfaces/IStakeProxy.sol";
-import {PercentageMath} from "./libraries/PercentageMath.sol";
 
 contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
-    using PercentageMath for uint256;
+    using MathUpgradeable for uint256;
     uint256 public constant APE_COIN_POOL_ID = 0;
     uint256 private constant APE_COIN_PRECISION = 1e18;
     uint256 private constant MIN_DEPOSIT = 1 * APE_COIN_PRECISION;
     uint256 private constant MAX_FEE = 1000;
+    uint256 private constant PERCENTAGE_FACTOR = 1e4;
 
     IApeCoinStaking public apeStaking;
     IStakeManager public stakeManager;
@@ -71,7 +72,7 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
 
     function _pendingRewards() internal view returns (uint256) {
         uint256 pendingRewardsAmount = apeStaking.pendingRewards(APE_COIN_POOL_ID, address(this), 0);
-        uint256 feeAmount = pendingRewardsAmount.percentMul(fee);
+        uint256 feeAmount = pendingRewardsAmount.mulDiv(fee, PERCENTAGE_FACTOR, MathUpgradeable.Rounding.Down);
         return pendingRewardsAmount - feeAmount;
     }
 
@@ -144,7 +145,7 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
             uint256 preBalance = _asset.balanceOf(address(this));
             apeStaking.claimSelfApeCoin();
             rewardAmount = _asset.balanceOf(address(this)) - preBalance;
-            uint256 feeAmount = rewardAmount.percentMul(fee);
+            uint256 feeAmount = rewardAmount.mulDiv(fee, PERCENTAGE_FACTOR, MathUpgradeable.Rounding.Down);
             if (feeAmount > 0 && feeRecipient != address(0)) {
                 SafeERC20Upgradeable.safeTransfer(_asset, feeRecipient, feeAmount);
                 rewardAmount -= feeAmount;
@@ -162,10 +163,6 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
 
     function claimAndDeposit(address[] calldata proxies) external returns (uint256) {
         return _claimAndDepositFor(proxies, msg.sender);
-    }
-
-    function claimAndDepositFor(address[] calldata proxies, address staker) external returns (uint256) {
-        return _claimAndDepositFor(proxies, staker);
     }
 
     function _claimAndDepositFor(address[] calldata proxies, address staker) internal returns (uint256 shares) {
