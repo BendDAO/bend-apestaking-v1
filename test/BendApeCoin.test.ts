@@ -144,7 +144,7 @@ makeSuite("BendApeCoin", (contracts: Contracts, env: Env, snapshots: Snapshots) 
 
   const pendingRewards = async () => {
     const rewards = await contracts.apeStaking.pendingRewards(0, contracts.bendApeCoin.address, 0);
-    const toFee = rewards.mul(fee).add(5000).div(10000);
+    const toFee = rewards.mul(fee).div(10000);
     return [rewards.sub(toFee), toFee];
   };
 
@@ -406,31 +406,6 @@ makeSuite("BendApeCoin", (contracts: Contracts, env: Env, snapshots: Snapshots) 
       const rewards = await contracts.stakeManager.claimable((param as any).proxy.address, staker);
 
       await expect(contracts.bendApeCoin.connect(claimerSigner).claimAndDeposit([(param as any).proxy.address]))
-        .changeTokenBalance(contracts.apeCoin, staker, constants.Zero)
-        .changeTokenBalance(contracts.bendApeCoin, staker, rewards);
-    }
-  });
-
-  it("claimAndDepositFor", async () => {
-    await snapshots.revert("init");
-    const now = await latest();
-    const randomParams = () => {
-      return randomStake(env, contracts).chain((v) => {
-        const times = getPoolTime(v.poolId);
-        const randomTime = fc.integer({ min: Math.max(now + 100, times[0]), max: times[1] });
-        return fc.tuple(fc.constant(v), randomWithLoan, randomTime);
-      });
-    };
-    const [param, withLoan, time] = fc.sample(randomParams(), 1)[0];
-    await snapshots.revert("init");
-    await prepareStake(contracts, param, withLoan);
-    await doStake(contracts, param);
-    await increaseTo(BigNumber.from(time));
-    await advanceBlock();
-    await skipHourBlocks();
-    for (const staker of param.stakers) {
-      const rewards = await contracts.stakeManager.claimable((param as any).proxy.address, staker);
-      await expect(contracts.bendApeCoin.claimAndDepositFor([(param as any).proxy.address], staker))
         .changeTokenBalance(contracts.apeCoin, staker, constants.Zero)
         .changeTokenBalance(contracts.bendApeCoin, staker, rewards);
     }
