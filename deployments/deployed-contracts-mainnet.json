@@ -10,5 +10,9 @@
   "BendApeStaking": {
     "address": "0x044A97AC566F348B9f229601F1240E5d1758013A",
     "deployer": "0x868964fa49a6fd6e116FE82c8f4165904406f479"
+  },
+  "BendApeCoin": {
+    "address": "0xEB3837c611fb2C5550F816f227D85262f0d04A52",
+    "deployer": "0x868964fa49a6fd6e116FE82c8f4165904406f479"
   }
 }
