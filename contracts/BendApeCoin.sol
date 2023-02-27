@@ -38,7 +38,7 @@ contract BendApeCoin is ERC4626Upgradeable, IBendApeCoin, OwnableUpgradeable {
         IStakeManager stakeManager_
     ) external initializer {
         __Ownable_init();
-        __ERC20_init("BendDAO ApeCoin", "bAPE");
+        __ERC20_init("BendDAO Staked ApeCoin", "bstAPE");
         __ERC4626_init(apeCoin_);
         apeStaking = apeStaking_;
         stakeManager = stakeManager_;
