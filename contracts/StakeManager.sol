@@ -281,7 +281,10 @@ contract StakeManager is
         _flashUnStake(proxy);
     }
 
-    function unStakeBatch(IStakeProxy[] calldata userProxies_) external nonReentrant {
+    /**
+     * @dev batch unStake, NO NEED to check nonReentrant and modifier cos reuse the unStake function
+     */
+    function unStakeBatch(IStakeProxy[] calldata userProxies_) external {
         for (uint256 i = 0; i < userProxies_.length; i++) {
             unStake(userProxies_[i]);
         }

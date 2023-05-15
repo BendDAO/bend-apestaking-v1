@@ -61,6 +61,8 @@ interface IStakeManager {
 
     function unStake(IStakeProxy proxy) external;
 
+    function unStakeBatch(IStakeProxy[] calldata userProxies_) external;
+
     function claim(IStakeProxy proxy) external;
 
     function claimFor(IStakeProxy proxy, address staker) external;
