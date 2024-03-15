@@ -115,7 +115,9 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
     const withLoan = beoundApeMinter === contracts.lendPoolLoan.address;
 
     // assert ape coin balances
-    await expect(contracts.stakeManager.connect(unStakerSigner).unStake(param.proxy.address)).changeTokenBalances(
+    await expect(
+      contracts.stakeManager.connect(unStakerSigner).unStakeBatch([param.proxy.address])
+    ).changeTokenBalances(
       contracts.apeCoin,
       [apeStaked.staker, bakcStaked.staker, coinStaked.staker, await contracts.stakeManager.feeRecipient()],
       [
@@ -499,7 +501,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
   });
 
   it("onlyStakerOrOperator: revertions work as expected", async () => {
-    await expect(contracts.stakeManager.unStake(constants.AddressZero)).to.be.revertedWith(
+    await expect(contracts.stakeManager.unStakeBatch([constants.AddressZero])).to.be.revertedWith(
       "StakeManager: invalid proxy"
     );
 
@@ -520,7 +522,7 @@ makeSuite("StakeManager", (contracts: Contracts, env: Env, snapshots: Snapshots)
       await _doStake(param);
       const proxy = (param as any).proxy;
       await expect(
-        contracts.stakeManager.connect(await ethers.getSigner(unStaker)).unStake(proxy.address)
+        contracts.stakeManager.connect(await ethers.getSigner(unStaker)).unStakeBatch([proxy.address])
       ).to.be.revertedWith("StakeManager: invalid caller");
     }
   });

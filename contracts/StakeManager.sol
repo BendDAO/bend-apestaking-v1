@@ -276,9 +276,18 @@ contract StakeManager is
         boundApe.setFlashLoanLocking(tokenId, msg.sender, locked);
     }
 
-    function unStake(IStakeProxy proxy) external override onlyStakerOrOperator(proxy) nonReentrant {
+    function unStake(IStakeProxy proxy) public override onlyStakerOrOperator(proxy) nonReentrant {
         require(!proxy.unStaked(), "StakeManager: already unStaked");
         _flashUnStake(proxy);
+    }
+
+    /**
+     * @dev batch unStake, NO NEED to check nonReentrant and modifier cos reuse the unStake function
+     */
+    function unStakeBatch(IStakeProxy[] calldata userProxies_) external {
+        for (uint256 i = 0; i < userProxies_.length; i++) {
+            unStake(userProxies_[i]);
+        }
     }
 
     function _flashUnStake(IStakeProxy proxy) internal {
