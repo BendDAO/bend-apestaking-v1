@@ -1,0 +1,18 @@
+{
+  "StakeProxy": {
+    "address": "0x8F73BEebF3eF81F46651dDA10DC4FC18FDc740c9",
+    "deployer": "0xafF5C36642385b6c7Aaf7585eC785aB2316b5db6"
+  },
+  "StakeManager": {
+    "address": "0x43e451A231C9013dE0231C31FF556766df5E954F",
+    "deployer": "0xafF5C36642385b6c7Aaf7585eC785aB2316b5db6"
+  },
+  "BendApeStaking": {
+    "address": "0xA4aa1fc12FeDDD29d8b1393A700a17BE2f891231",
+    "deployer": "0xafF5C36642385b6c7Aaf7585eC785aB2316b5db6"
+  },
+  "BendApeCoin": {
+    "address": "0x8c537FfC4417Ca7cf0C0B9c8F468c7A77117845E",
+    "deployer": "0xafF5C36642385b6c7Aaf7585eC785aB2316b5db6"
+  }
+}

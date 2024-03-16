@@ -34,7 +34,9 @@ task("deploy:full", "Deploy all contracts").setAction(async (_, { run }) => {
   await run("deploy:StakeProxy");
   await run("deploy:StakeManager");
   await run("deploy:BendApeStaking");
-  await run("deploy:Config");
+
+  await run("deploy:BendApeCoin");
+  await run("deploy:config:BendApeCoin");
 });
 
 task("deploy:StakeProxy", "Deploy StakeProxy").setAction(async (_, { run }) => {
